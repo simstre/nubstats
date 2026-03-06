@@ -23,25 +23,19 @@ type SortKey =
 export function WeaponStats() {
   const [data, setData] = useState<Record<string, WeaponStat[]>>({});
   const [loading, setLoading] = useState(true);
-  const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [selectedPlayer, setSelectedPlayer] = useState<string>("all");
-  const [lastResult, setLastResult] = useState<string | null>(null);
   const [sortKey, setSortKey] = useState<SortKey>("damage");
   const [sortAsc, setSortAsc] = useState(false);
 
-  const loadData = async (refresh = false) => {
+  const loadData = async () => {
     try {
-      const url = refresh ? "/api/weapons?refresh=true" : "/api/weapons";
-      const res = await fetch(url);
+      const res = await fetch("/api/weapons");
       const json = await res.json();
       if (json.error) {
         setError(json.error);
       } else {
         setData(json.weapons || {});
-        if (refresh) {
-          setLastResult(`Processed ${json.newMatchesProcessed} new matches`);
-        }
         setError(null);
       }
     } catch (err) {
@@ -57,12 +51,6 @@ export function WeaponStats() {
     return () => { cancelled = true; };
   }, []);
 
-  const handleRefresh = async () => {
-    setRefreshing(true);
-    setLastResult(null);
-    await loadData(true);
-    setRefreshing(false);
-  };
 
   if (loading) {
     return (
@@ -176,21 +164,10 @@ export function WeaponStats() {
             </button>
           ))}
         </div>
-        <button
-          onClick={handleRefresh}
-          disabled={refreshing}
-          className="px-3 py-1.5 bg-zinc-700 text-zinc-200 font-medium rounded-md hover:bg-zinc-600 disabled:opacity-50 transition text-sm"
-        >
-          {refreshing ? "Processing matches..." : "Scan New Matches"}
-        </button>
       </div>
 
-      {lastResult && (
-        <p className="text-xs text-green-400">{lastResult}</p>
-      )}
-
       <p className="text-xs text-zinc-500">
-        Weapon stats accumulate over time from telemetry data. Click &quot;Scan New Matches&quot; to process recent games.
+        Weapon stats accumulate from telemetry data, updated daily via cron.
         Click any column header to sort. <span className="text-zinc-400">Kills/G</span> = kills per game, <span className="text-zinc-400">Dmg/G</span> = damage per game, <span className="text-zinc-400">Kill %</span> = knock-to-kill conversion rate.
       </p>
 
