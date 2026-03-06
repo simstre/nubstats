@@ -8,7 +8,9 @@ import {
 import { upsertPlayer, insertSnapshot, initDb } from "@/lib/db";
 import { TRACKED_PLAYERS } from "@/lib/types";
 
-export const maxDuration = 60;
+export const maxDuration = 300;
+
+const RATE_LIMIT_MS = 6500;
 
 export async function GET(request: NextRequest) {
   const authHeader = request.headers.get("authorization");
@@ -23,6 +25,7 @@ export async function GET(request: NextRequest) {
   try {
     await initDb();
     const seasonId = await getCurrentSeason();
+    await new Promise((r) => setTimeout(r, RATE_LIMIT_MS));
     const results: Record<string, string> = {};
 
     for (const playerName of TRACKED_PLAYERS) {
@@ -30,10 +33,12 @@ export async function GET(request: NextRequest) {
         const player = await getPlayerByName(playerName);
         if (!player) {
           results[playerName] = "Player not found";
+          await new Promise((r) => setTimeout(r, RATE_LIMIT_MS));
           continue;
         }
 
         await upsertPlayer(player.name, player.id);
+        await new Promise((r) => setTimeout(r, RATE_LIMIT_MS));
 
         const lifetimeStats = await getLifetimeStats(player.id);
         if (lifetimeStats?.squad && lifetimeStats.squad.roundsPlayed > 0) {
@@ -41,6 +46,7 @@ export async function GET(request: NextRequest) {
             player.name, player.id, "lifetime", "squad", lifetimeStats.squad
           );
         }
+        await new Promise((r) => setTimeout(r, RATE_LIMIT_MS));
 
         if (seasonId) {
           const seasonStats = await getSeasonStats(player.id, seasonId);
@@ -49,11 +55,10 @@ export async function GET(request: NextRequest) {
               player.name, player.id, seasonId, "squad", seasonStats.squad
             );
           }
+          await new Promise((r) => setTimeout(r, RATE_LIMIT_MS));
         }
 
         results[playerName] = "OK";
-        // Rate limit: 10 req/min, each player = 3 calls, wait 20s between players
-        await new Promise((r) => setTimeout(r, 20000));
       } catch (err) {
         results[playerName] = String(err);
       }
