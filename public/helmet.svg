@@ -1,0 +1,20 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" fill="none">
+  <!-- Level 3 Helmet (Spetsnaz) -->
+  <!-- Helmet dome -->
+  <path d="M12 30C12 18 20 8 32 8C44 8 52 18 52 30V36H12V30Z" fill="#3f3f46" stroke="#a1a1aa" stroke-width="2"/>
+  <!-- Visor -->
+  <path d="M16 30C16 22 23 14 32 14C41 14 48 22 48 30V32H16V30Z" fill="#27272a" stroke="#71717a" stroke-width="1.5"/>
+  <!-- Visor slit -->
+  <rect x="16" y="28" width="32" height="6" rx="1" fill="#18181b" stroke="#facc15" stroke-width="1.5"/>
+  <!-- Eye slit glow -->
+  <rect x="18" y="29.5" width="28" height="3" rx="0.5" fill="#facc15" opacity="0.3"/>
+  <!-- Chin guard -->
+  <path d="M14 36H50V42C50 46 46 52 32 52C18 52 14 46 14 42V36Z" fill="#3f3f46" stroke="#a1a1aa" stroke-width="2"/>
+  <!-- Mouth vent -->
+  <circle cx="26" cy="44" r="1.5" fill="#18181b"/>
+  <circle cx="32" cy="44" r="1.5" fill="#18181b"/>
+  <circle cx="38" cy="44" r="1.5" fill="#18181b"/>
+  <!-- Side rivets -->
+  <circle cx="14" cy="33" r="1.5" fill="#71717a"/>
+  <circle cx="50" cy="33" r="1.5" fill="#71717a"/>
+</svg>

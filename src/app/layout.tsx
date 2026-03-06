@@ -13,7 +13,7 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "PUBG NUB Tracker",
+  title: "PUBG NUB",
   description: "Track and compare PUBG stats for the NUBZ squad",
 };
 

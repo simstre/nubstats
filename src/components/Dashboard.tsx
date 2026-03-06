@@ -83,8 +83,9 @@ export function Dashboard() {
         <div className="max-w-7xl mx-auto px-4 py-4">
           <div className="flex items-center justify-between flex-wrap gap-4">
             <div>
-              <h1 className="text-2xl font-bold tracking-tight">
-                <span className="text-yellow-400">PUBG</span> NUB Tracker
+              <h1 className="text-2xl font-bold tracking-tight flex items-center gap-2">
+                <img src="/helmet.svg" alt="" className="h-8 w-8" />
+                <span><span className="text-yellow-400">PUBG</span> NUB</span>
               </h1>
               <p className="text-xs text-zinc-500 mt-0.5">
                 Squad TPP &bull;{" "}
@@ -210,7 +211,7 @@ export function Dashboard() {
       </main>
 
       <footer className="border-t border-zinc-800 py-4 text-center text-xs text-zinc-600 mt-8">
-        PUBG NUB Tracker &mdash; Stats auto-fetched daily at 11:00 UTC via Vercel Cron
+        PUBG NUB &mdash; Stats auto-fetched daily at 11:00 UTC via Vercel Cron
       </footer>
     </div>
   );
