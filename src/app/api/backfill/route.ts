@@ -5,7 +5,7 @@ import {
   getSeasonStats,
   getLifetimeStats,
 } from "@/lib/pubg-api";
-import { upsertPlayer, insertSnapshot, initDb } from "@/lib/db";
+import { upsertPlayer, insertSnapshot, initDb, getExistingBackfillSeasons } from "@/lib/db";
 import { TRACKED_PLAYERS } from "@/lib/types";
 
 export const maxDuration = 300;
@@ -41,6 +41,9 @@ export async function GET(request: NextRequest) {
         send(`Found ${seasons.length} PC seasons`);
         await rateLimitedWait();
 
+        const existing = await getExistingBackfillSeasons();
+        send(`${existing.size} player/season combos already in DB`);
+
         for (const playerName of TRACKED_PLAYERS) {
           const player = await getPlayerByName(playerName);
           if (!player) {
@@ -67,9 +70,15 @@ export async function GET(request: NextRequest) {
           }
           await rateLimitedWait();
 
-          // All seasons
+          // All seasons - skip already backfilled
+          let skipped = 0;
           for (let i = 0; i < seasons.length; i++) {
             const season = seasons[i];
+            const key = `${player.name}::${season.id}`;
+            if (existing.has(key)) {
+              skipped++;
+              continue;
+            }
             try {
               const seasonStats = await getSeasonStats(player.id, season.id);
               if (seasonStats?.squad && seasonStats.squad.roundsPlayed > 0) {
@@ -89,6 +98,7 @@ export async function GET(request: NextRequest) {
             }
             await rateLimitedWait();
           }
+          if (skipped > 0) send(`${playerName}: skipped ${skipped} already-backfilled seasons`);
 
           send(`${playerName}: DONE`);
         }

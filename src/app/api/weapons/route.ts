@@ -9,6 +9,8 @@ import {
   upsertWeaponStat,
   getWeaponStats,
   getAllWeaponStats,
+  upsertDeathStat,
+  getAllDeathStats,
 } from "@/lib/db";
 
 export const dynamic = "force-dynamic";
@@ -98,6 +100,7 @@ export async function GET(request: NextRequest) {
             totalKillDist: number; longestKillDist: number;
           }
           const matchStats: Record<string, Record<string, WepAccum>> = {};
+          const deathAccum: Record<string, Record<string, number>> = {};
 
           function ensure(name: string, w: string) {
             if (!matchStats[name]) matchStats[name] = {};
@@ -105,6 +108,11 @@ export async function GET(request: NextRequest) {
               kills: 0, knocks: 0, damage: 0, headshots: 0, hits: 0,
               totalKillDist: 0, longestKillDist: 0,
             };
+          }
+
+          function ensureDeath(name: string, cause: string) {
+            if (!deathAccum[name]) deathAccum[name] = {};
+            if (!deathAccum[name][cause]) deathAccum[name][cause] = 0;
           }
 
           for (const e of events) {
@@ -141,6 +149,16 @@ export async function GET(request: NextRequest) {
                 matchStats[name][w].knocks += 1;
               }
             }
+
+            // Track deaths where victim is a tracked player
+            if (e._T === "LogPlayerKillV2") {
+              const victim = e.victim?.name;
+              if (victim && trackedSet.has(victim) && e.killerDamageInfo) {
+                const cause = getWeaponName(e.killerDamageInfo.damageCauserName);
+                ensureDeath(victim, cause);
+                deathAccum[victim][cause] += 1;
+              }
+            }
           }
 
           // Save to DB
@@ -151,6 +169,13 @@ export async function GET(request: NextRequest) {
                 stats.kills, stats.knocks, stats.damage, stats.headshots, stats.hits, 1,
                 stats.totalKillDist, stats.longestKillDist
               );
+            }
+          }
+
+          // Save death stats
+          for (const [playerName, causes] of Object.entries(deathAccum)) {
+            for (const [cause, count] of Object.entries(causes)) {
+              await upsertDeathStat(playerName, cause, count);
             }
           }
 
@@ -166,16 +191,20 @@ export async function GET(request: NextRequest) {
 
       // Return fresh data
       const allStats = await getAllWeaponStats();
+      const allDeaths = await getAllDeathStats();
       return NextResponse.json({
         weapons: groupByPlayer(allStats),
+        deaths: groupByPlayer(allDeaths),
         newMatchesProcessed: processed,
       });
     }
 
     // Just return stored data
     const allStats = await getAllWeaponStats();
+    const allDeaths = await getAllDeathStats();
     return NextResponse.json({
       weapons: groupByPlayer(allStats),
+      deaths: groupByPlayer(allDeaths),
       newMatchesProcessed: 0,
     });
   } catch (error) {

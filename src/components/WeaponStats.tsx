@@ -106,9 +106,9 @@ export function WeaponStats() {
 
   function getSortValue(w: WeaponStat): number | string {
     if (sortKey === "weapon") return w.weapon.toLowerCase();
-    if (sortKey in w) return (w as Record<string, number>)[sortKey] ?? 0;
+    if (sortKey in w) return (w as unknown as Record<string, number>)[sortKey] ?? 0;
     const d = derived(w);
-    return (d as Record<string, number>)[sortKey] ?? 0;
+    return (d as unknown as Record<string, number>)[sortKey] ?? 0;
   }
 
   weapons.sort((a, b) => {

@@ -7,6 +7,7 @@ import { PlayerStatsPanel } from "./PlayerStatsPanel";
 import { HistoryChart } from "./HistoryChart";
 import { MatchHistory } from "./MatchHistory";
 import { WeaponStats } from "./WeaponStats";
+import { DeathStats } from "./DeathStats";
 
 interface Snapshot {
   player_name: string;
@@ -15,7 +16,7 @@ interface Snapshot {
   fetched_at: string;
 }
 
-type Tab = "leaderboard" | "players" | "matches" | "weapons" | "history";
+type Tab = "leaderboard" | "players" | "matches" | "weapons" | "deaths" | "history";
 
 function seasonLabel(seasonId: string): string {
   if (seasonId === "lifetime") return "Lifetime";
@@ -35,9 +36,6 @@ export function Dashboard() {
   const [gameMode] = useState<GameMode>("squad");
   const [selectedPlayer, setSelectedPlayer] = useState(TRACKED_PLAYERS[0]);
   const [tab, setTab] = useState<Tab>("leaderboard");
-  const [backfilling, setBackfilling] = useState(false);
-  const [backfillLog, setBackfillLog] = useState<string[]>([]);
-  const [backfillDone, setBackfillDone] = useState(false);
 
   const loadStats = useCallback(async (season?: string) => {
     try {
@@ -68,39 +66,15 @@ export function Dashboard() {
     await loadStats(season);
   };
 
-  const handleBackfill = async () => {
-    setBackfilling(true);
-    setBackfillLog([]);
-    try {
-      const res = await fetch("/api/backfill");
-      const reader = res.body?.getReader();
-      const decoder = new TextDecoder();
-      if (reader) {
-        while (true) {
-          const { done, value } = await reader.read();
-          if (done) break;
-          const text = decoder.decode(value);
-          const lines = text.split("\n").filter((l) => l.startsWith("data: "));
-          for (const line of lines) {
-            const msg = line.replace("data: ", "");
-            setBackfillLog((prev) => [...prev, msg]);
-            if (msg === "BACKFILL COMPLETE") setBackfillDone(true);
-          }
-        }
-      }
-      await loadStats();
-    } catch (err) {
-      setBackfillLog((prev) => [...prev, `ERROR: ${err}`]);
-    } finally {
-      setBackfilling(false);
-    }
-  };
-
   const lastFetch = snapshots.length > 0
     ? new Date(
         Math.max(...snapshots.map((s) => new Date(s.fetched_at).getTime()))
       )
     : null;
+
+  const sortedSeasons = seasons
+    .filter((s) => s !== "lifetime" && s.includes("pc-"))
+    .sort();
 
   return (
     <div className="min-h-screen bg-zinc-950 text-white">
@@ -122,54 +96,20 @@ export function Dashboard() {
                 {lastFetch && ` | Updated ${lastFetch.toLocaleString()}`}
               </p>
             </div>
-            <div className="flex gap-2">
-              {!backfillDone && (
-                <button
-                  onClick={handleBackfill}
-                  disabled={backfilling}
-                  className="px-3 py-2 bg-zinc-700 text-zinc-200 font-medium rounded-lg hover:bg-zinc-600 disabled:opacity-50 disabled:cursor-not-allowed transition text-sm"
-                >
-                  {backfilling ? "Backfilling..." : "Backfill All Seasons"}
-                </button>
-              )}
-            </div>
           </div>
         </div>
       </header>
 
-      {/* Backfill log */}
-      {backfillLog.length > 0 && (
-        <div className="max-w-7xl mx-auto px-4 pt-4">
-          <div className="bg-zinc-900 border border-zinc-700 rounded-lg p-3 max-h-48 overflow-y-auto">
-            <div className="flex items-center justify-between mb-2">
-              <span className="text-xs font-semibold text-zinc-400">Backfill Progress</span>
-              {!backfilling && (
-                <button
-                  onClick={() => setBackfillLog([])}
-                  className="text-xs text-zinc-500 hover:text-zinc-300"
-                >
-                  Dismiss
-                </button>
-              )}
-            </div>
-            {backfillLog.map((msg, i) => (
-              <div key={i} className="text-xs text-zinc-400 font-mono leading-5">
-                {msg}
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
-
       <main className="max-w-7xl mx-auto px-4 py-6 space-y-6">
         {/* Tabs */}
-        <div className="flex gap-1 bg-zinc-800/50 rounded-lg p-1 w-fit">
+        <div className="flex gap-1 bg-zinc-800/50 rounded-lg p-1 w-fit flex-wrap">
           {(
             [
               { key: "leaderboard", label: "Leaderboard" },
               { key: "players", label: "Player Stats" },
-              { key: "matches", label: "Matches" },
+              { key: "matches", label: "Recent Matches" },
               { key: "weapons", label: "Weapons" },
+              { key: "deaths", label: "Deaths" },
               { key: "history", label: "History" },
             ] as { key: Tab; label: string }[]
           ).map((t) => (
@@ -187,36 +127,22 @@ export function Dashboard() {
           ))}
         </div>
 
-        {/* Season selector (for leaderboard and player tabs) */}
-        {tab !== "history" && tab !== "matches" && tab !== "weapons" && seasons.length > 0 && (
-          <div className="flex flex-wrap gap-2 items-center">
-            <span className="text-xs text-zinc-500 mr-1">Season:</span>
-            <button
-              onClick={() => handleSeasonChange("lifetime")}
-              className={`px-3 py-1.5 rounded-md text-sm transition ${
-                selectedSeason === "lifetime"
-                  ? "bg-yellow-500/20 text-yellow-400 font-semibold ring-1 ring-yellow-500/50"
-                  : "bg-zinc-800 text-zinc-400 hover:bg-zinc-700"
-              }`}
+        {/* Season selector (dropdown) */}
+        {tab !== "history" && tab !== "matches" && tab !== "weapons" && tab !== "deaths" && sortedSeasons.length > 0 && (
+          <div className="flex items-center gap-3">
+            <span className="text-xs text-zinc-500">Season:</span>
+            <select
+              value={selectedSeason}
+              onChange={(e) => handleSeasonChange(e.target.value)}
+              className="bg-zinc-800 text-zinc-200 text-sm rounded-md px-3 py-1.5 border border-zinc-700 focus:outline-none focus:ring-1 focus:ring-yellow-500/50 cursor-pointer"
             >
-              Lifetime
-            </button>
-            {seasons
-              .filter((s) => s !== "lifetime" && s.includes("pc-"))
-              .sort()
-              .map((s) => (
-                <button
-                  key={s}
-                  onClick={() => handleSeasonChange(s)}
-                  className={`px-3 py-1.5 rounded-md text-sm transition ${
-                    selectedSeason === s
-                      ? "bg-yellow-500/20 text-yellow-400 font-semibold ring-1 ring-yellow-500/50"
-                      : "bg-zinc-800 text-zinc-400 hover:bg-zinc-700"
-                  }`}
-                >
+              <option value="lifetime">Lifetime</option>
+              {sortedSeasons.map((s) => (
+                <option key={s} value={s}>
                   {seasonLabel(s)}
-                </button>
+                </option>
               ))}
+            </select>
           </div>
         )}
 
@@ -235,7 +161,6 @@ export function Dashboard() {
                 style={{
                   color: PLAYER_COLORS[name],
                   borderColor: selectedPlayer === name ? PLAYER_COLORS[name] : undefined,
-                  ringColor: selectedPlayer === name ? PLAYER_COLORS[name] : undefined,
                 }}
               >
                 {name}
@@ -277,6 +202,7 @@ export function Dashboard() {
             )}
             {tab === "matches" && <MatchHistory />}
             {tab === "weapons" && <WeaponStats />}
+            {tab === "deaths" && <DeathStats />}
             {tab === "history" && <HistoryChart gameMode={gameMode} />}
           </>
         )}

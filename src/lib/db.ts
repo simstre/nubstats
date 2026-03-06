@@ -145,6 +145,16 @@ export async function initWeaponTables() {
       processed_at TIMESTAMP DEFAULT NOW()
     )
   `);
+
+  await query(`
+    CREATE TABLE IF NOT EXISTS death_stats (
+      id SERIAL PRIMARY KEY,
+      player_name VARCHAR(255) NOT NULL,
+      cause VARCHAR(255) NOT NULL,
+      deaths INTEGER DEFAULT 0,
+      UNIQUE(player_name, cause)
+    )
+  `);
 }
 
 export async function isMatchProcessed(matchId: string): Promise<boolean> {
@@ -219,6 +229,38 @@ export async function getAllWeaponStats() {
     `SELECT * FROM weapon_stats ORDER BY player_name, damage DESC`
   );
   return result.rows;
+}
+
+export async function upsertDeathStat(
+  playerName: string,
+  cause: string,
+  deaths: number
+) {
+  await query(
+    `INSERT INTO death_stats (player_name, cause, deaths)
+     VALUES ($1, $2, $3)
+     ON CONFLICT (player_name, cause)
+     DO UPDATE SET deaths = death_stats.deaths + $3`,
+    [playerName, cause, deaths]
+  );
+}
+
+export async function getAllDeathStats() {
+  const result = await query(
+    `SELECT * FROM death_stats ORDER BY player_name, deaths DESC`
+  );
+  return result.rows;
+}
+
+export async function getExistingBackfillSeasons(): Promise<Set<string>> {
+  const result = await query(
+    `SELECT DISTINCT player_name, season_id FROM stat_snapshots WHERE season_id != 'lifetime'`
+  );
+  const set = new Set<string>();
+  for (const row of result.rows) {
+    set.add(`${row.player_name}::${row.season_id}`);
+  }
+  return set;
 }
 
 export async function getSnapshotsBySeason(seasonId: string) {
