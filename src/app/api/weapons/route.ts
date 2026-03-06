@@ -14,6 +14,7 @@ import {
   getProcessedMatchesDateRange,
   upsertMatch,
   getProcessedMatchIdsWithoutDetails,
+  getAllProcessedMatchIds,
 } from "@/lib/db";
 
 export const dynamic = "force-dynamic";
@@ -43,6 +44,86 @@ export async function GET(request: NextRequest) {
 
   try {
     await initWeaponTables();
+
+    // Reprocess existing matches for a specific player (one-time use)
+    const reprocessPlayer = searchParams.get("reprocess");
+    if (reprocessPlayer && TRACKED_PLAYERS.includes(reprocessPlayer)) {
+      const step = parseInt(searchParams.get("step") || "0");
+      const matchIds = await getAllProcessedMatchIds();
+      const batchSize = 5;
+      const batch = matchIds.slice(step * batchSize, (step + 1) * batchSize);
+
+      let processed = 0;
+      for (const matchId of batch) {
+        try {
+          const matchRes = await fetch(
+            `https://api.pubg.com/shards/${process.env.PUBG_PLATFORM || "steam"}/matches/${matchId}`,
+            { headers: { Authorization: `Bearer ${process.env.PUBG_API_KEY}`, Accept: "application/vnd.api+json" } }
+          );
+          if (!matchRes.ok) continue;
+          const matchData = await matchRes.json();
+          let telemetryUrl = "";
+          for (const inc of matchData.included || []) {
+            if (inc.type === "asset") { telemetryUrl = inc.attributes.URL; break; }
+          }
+          if (!telemetryUrl) continue;
+
+          const telRes = await fetch(telemetryUrl, { headers: { "Accept-Encoding": "gzip" } });
+          if (!telRes.ok) continue;
+          const events: TelemetryEvent[] = await telRes.json();
+
+          const wepStats: Record<string, { kills: number; knocks: number; damage: number; headshots: number; hits: number; totalKillDist: number; longestKillDist: number }> = {};
+          const deathCauses: Record<string, number> = {};
+
+          for (const e of events) {
+            if (e._T === "LogPlayerTakeDamage" && e.attacker?.name === reprocessPlayer && e.damageCauserName) {
+              const w = getWeaponName(e.damageCauserName);
+              if (!wepStats[w]) wepStats[w] = { kills: 0, knocks: 0, damage: 0, headshots: 0, hits: 0, totalKillDist: 0, longestKillDist: 0 };
+              wepStats[w].damage += e.damage || 0;
+              wepStats[w].hits += 1;
+            }
+            if (e._T === "LogPlayerKillV2") {
+              if (e.killer?.name === reprocessPlayer && e.killerDamageInfo) {
+                const w = getWeaponName(e.killerDamageInfo.damageCauserName);
+                if (!wepStats[w]) wepStats[w] = { kills: 0, knocks: 0, damage: 0, headshots: 0, hits: 0, totalKillDist: 0, longestKillDist: 0 };
+                wepStats[w].kills += 1;
+                const dist = (e.killerDamageInfo.distance || 0) / 100;
+                wepStats[w].totalKillDist += dist;
+                if (dist > wepStats[w].longestKillDist) wepStats[w].longestKillDist = dist;
+              }
+              if (e.victim?.name === reprocessPlayer && e.killerDamageInfo) {
+                const cause = getWeaponName(e.killerDamageInfo.damageCauserName);
+                deathCauses[cause] = (deathCauses[cause] || 0) + 1;
+              }
+            }
+            if (e._T === "LogPlayerMakeGroggy" && e.attacker?.name === reprocessPlayer && e.damageCauserName) {
+              const w = getWeaponName(e.damageCauserName);
+              if (!wepStats[w]) wepStats[w] = { kills: 0, knocks: 0, damage: 0, headshots: 0, hits: 0, totalKillDist: 0, longestKillDist: 0 };
+              wepStats[w].knocks += 1;
+            }
+          }
+
+          for (const [weapon, stats] of Object.entries(wepStats)) {
+            await upsertWeaponStat(reprocessPlayer, weapon, stats.kills, stats.knocks, stats.damage, stats.headshots, stats.hits, 1, stats.totalKillDist, stats.longestKillDist);
+          }
+          for (const [cause, count] of Object.entries(deathCauses)) {
+            await upsertDeathStat(reprocessPlayer, cause, count);
+          }
+          processed++;
+        } catch { /* skip */ }
+        await new Promise((r) => setTimeout(r, 500));
+      }
+
+      // Chain next batch
+      const nextStart = (step + 1) * batchSize;
+      if (nextStart < matchIds.length) {
+        const url = new URL(request.url);
+        url.searchParams.set("step", String(step + 1));
+        waitUntil(fetch(url.toString()).catch(() => {}));
+      }
+
+      return NextResponse.json({ success: true, player: reprocessPlayer, step, matchesReprocessed: processed, totalMatches: matchIds.length });
+    }
 
     if (refresh) {
       const step = parseInt(searchParams.get("step") || "0");

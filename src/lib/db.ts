@@ -210,6 +210,11 @@ export async function getProcessedMatchIdsWithoutDetails(): Promise<string[]> {
   return result.rows.map((r) => r.match_id);
 }
 
+export async function getAllProcessedMatchIds(): Promise<string[]> {
+  const result = await query(`SELECT match_id FROM processed_matches`);
+  return result.rows.map((r) => r.match_id);
+}
+
 export async function isMatchProcessed(matchId: string): Promise<boolean> {
   const result = await query(
     `SELECT 1 FROM processed_matches WHERE match_id = $1`,
