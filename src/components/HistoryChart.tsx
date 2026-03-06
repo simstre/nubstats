@@ -128,7 +128,7 @@ export function HistoryChart({ gameMode }: HistoryChartProps) {
         ))}
       </div>
 
-      <div className="h-96 w-full">
+      <div className="h-[600px] w-full">
         <ResponsiveContainer width="100%" height="100%">
           <LineChart data={chartData}>
             <CartesianGrid strokeDasharray="3 3" stroke="#333" />
