@@ -74,7 +74,8 @@ export function Dashboard() {
 
   const sortedSeasons = seasons
     .filter((s) => s !== "lifetime" && s.includes("pc-"))
-    .sort();
+    .sort()
+    .reverse();
 
   return (
     <div className="min-h-screen bg-zinc-950 text-white">
