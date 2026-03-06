@@ -84,7 +84,7 @@ export function Dashboard() {
           <div className="flex items-center justify-between flex-wrap gap-4">
             <div>
               <h1 className="text-2xl font-bold tracking-tight flex items-center gap-2">
-                <img src="/helmet.svg" alt="" className="h-8 w-8" />
+                <img src="/icon.png" alt="" className="h-8 w-8" />
                 <span><span className="text-yellow-400">PUBG</span> NUB</span>
               </h1>
               <p className="text-xs text-zinc-500 mt-0.5">
