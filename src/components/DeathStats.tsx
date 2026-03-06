@@ -120,9 +120,13 @@ export function DeathStats() {
       <p className="text-xs text-zinc-500">
         How your squad dies. Data comes from match telemetry (PUBG only retains match data for 14 days).
         Stats accumulate over time as new matches are processed daily.
-        {dateRange && dateRange.count > 0 && (
-          <> Based on <span className="text-zinc-300">{dateRange.count} matches</span> processed between <span className="text-zinc-300">{new Date(dateRange.earliest!).toLocaleDateString()}</span> and <span className="text-zinc-300">{new Date(dateRange.latest!).toLocaleDateString()}</span>.</>
-        )}
+        {dateRange && dateRange.count > 0 && (() => {
+          const earliest = new Date(dateRange.earliest!).toLocaleDateString();
+          const latest = new Date(dateRange.latest!).toLocaleDateString();
+          return earliest === latest
+            ? <> Based on <span className="text-zinc-300">{dateRange.count} matches</span> processed on <span className="text-zinc-300">{earliest}</span>.</>
+            : <> Based on <span className="text-zinc-300">{dateRange.count} matches</span> processed since <span className="text-zinc-300">{earliest}</span>.</>;
+        })()}
         {" "}Click column headers to sort.
       </p>
 

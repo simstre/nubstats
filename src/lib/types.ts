@@ -57,7 +57,7 @@ export interface Player {
   pubgId: string;
 }
 
-export const TRACKED_PLAYERS = ["Silvertibby", "alhole", "RetroGames84", "Musaz", "EmitMaj"];
+export const TRACKED_PLAYERS = ["Silvertibby", "alhole", "RetroGames84", "Musaz", "EmitMaj", "xxXDRAMAXxx"];
 
 export const PLAYER_COLORS: Record<string, string> = {
   Silvertibby: "#facc15",  // yellow
@@ -65,6 +65,7 @@ export const PLAYER_COLORS: Record<string, string> = {
   RetroGames84: "#f87171", // red
   Musaz: "#4ade80",        // green
   EmitMaj: "#c084fc",      // purple
+  xxXDRAMAXxx: "#fb923c",  // orange
 };
 
 export interface ComputedStats extends PubgPlayerStats {

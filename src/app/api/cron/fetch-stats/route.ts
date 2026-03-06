@@ -8,9 +8,10 @@ import {
 import { upsertPlayer, insertSnapshot, initDb } from "@/lib/db";
 import { TRACKED_PLAYERS } from "@/lib/types";
 
-export const maxDuration = 300;
+export const maxDuration = 60;
 
 const RATE_LIMIT_MS = 6500;
+const BATCH_SIZE = 2;
 
 export async function GET(request: NextRequest) {
   const authHeader = request.headers.get("authorization");
@@ -22,13 +23,22 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
+  const { searchParams } = new URL(request.url);
+  const step = parseInt(searchParams.get("step") || "0");
+  const start = step * BATCH_SIZE;
+  const batch = TRACKED_PLAYERS.slice(start, start + BATCH_SIZE);
+
+  if (batch.length === 0) {
+    return NextResponse.json({ success: true, message: "No more players to process" });
+  }
+
   try {
     await initDb();
     const seasonId = await getCurrentSeason();
     await new Promise((r) => setTimeout(r, RATE_LIMIT_MS));
     const results: Record<string, string> = {};
 
-    for (const playerName of TRACKED_PLAYERS) {
+    for (const playerName of batch) {
       try {
         const player = await getPlayerByName(playerName);
         if (!player) {
@@ -64,7 +74,15 @@ export async function GET(request: NextRequest) {
       }
     }
 
-    return NextResponse.json({ success: true, results });
+    // Chain next batch
+    const nextStart = (step + 1) * BATCH_SIZE;
+    if (nextStart < TRACKED_PLAYERS.length) {
+      const url = new URL(request.url);
+      url.searchParams.set("step", String(step + 1));
+      fetch(url.toString()).catch(() => {});
+    }
+
+    return NextResponse.json({ success: true, step, results });
   } catch (error) {
     console.error("Cron error:", error);
     return NextResponse.json(

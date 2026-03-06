@@ -176,9 +176,13 @@ export function WeaponStats() {
 
       <p className="text-xs text-zinc-500">
         Weapon stats accumulate from match telemetry (PUBG only retains match data for 14 days). Updated daily via cron.
-        {dateRange && dateRange.count > 0 && (
-          <> Based on <span className="text-zinc-300">{dateRange.count} matches</span> processed between <span className="text-zinc-300">{new Date(dateRange.earliest!).toLocaleDateString()}</span> and <span className="text-zinc-300">{new Date(dateRange.latest!).toLocaleDateString()}</span>.</>
-        )}
+        {dateRange && dateRange.count > 0 && (() => {
+          const earliest = new Date(dateRange.earliest!).toLocaleDateString();
+          const latest = new Date(dateRange.latest!).toLocaleDateString();
+          return earliest === latest
+            ? <> Based on <span className="text-zinc-300">{dateRange.count} matches</span> processed on <span className="text-zinc-300">{earliest}</span>.</>
+            : <> Based on <span className="text-zinc-300">{dateRange.count} matches</span> processed since <span className="text-zinc-300">{earliest}</span>.</>;
+        })()}
         {" "}Click any column header to sort. <span className="text-zinc-400">Kills/G</span> = kills per game, <span className="text-zinc-400">Dmg/G</span> = damage per game, <span className="text-zinc-400">Kill %</span> = knock-to-kill conversion rate.
       </p>
 

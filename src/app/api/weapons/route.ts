@@ -7,7 +7,6 @@ import {
   isMatchProcessed,
   markMatchProcessed,
   upsertWeaponStat,
-  getWeaponStats,
   getAllWeaponStats,
   upsertDeathStat,
   getAllDeathStats,
@@ -15,7 +14,10 @@ import {
 } from "@/lib/db";
 
 export const dynamic = "force-dynamic";
-export const maxDuration = 120;
+export const maxDuration = 60;
+
+const BATCH_SIZE = 2;
+const MAX_MATCHES_PER_STEP = 5;
 
 interface TelemetryEvent {
   _T: string;
@@ -40,23 +42,36 @@ export async function GET(request: NextRequest) {
     await initWeaponTables();
 
     if (refresh) {
-      // Process new matches
+      const step = parseInt(searchParams.get("step") || "0");
+      const start = step * BATCH_SIZE;
+      const batch = TRACKED_PLAYERS.slice(start, start + BATCH_SIZE);
+
+      if (batch.length === 0) {
+        return NextResponse.json({ success: true, message: "No more players" });
+      }
+
+      // Fetch match IDs for this batch of players
       const allMatchIds = new Set<string>();
-      for (const name of TRACKED_PLAYERS) {
-        const player = await getPlayerWithMatches(name);
-        if (player) {
-          for (const id of player.matchIds) {
-            allMatchIds.add(id);
+      for (const name of batch) {
+        try {
+          const player = await getPlayerWithMatches(name);
+          if (player) {
+            for (const id of player.matchIds) {
+              allMatchIds.add(id);
+            }
           }
+        } catch (err) {
+          console.error(`Failed to fetch matches for ${name}:`, err);
         }
         await new Promise((r) => setTimeout(r, 6500));
       }
 
+      // Process up to MAX_MATCHES_PER_STEP new matches
       let processed = 0;
       for (const matchId of allMatchIds) {
+        if (processed >= MAX_MATCHES_PER_STEP) break;
         if (await isMatchProcessed(matchId)) continue;
 
-        // Get telemetry URL from match
         const matchRes = await fetch(
           `https://api.pubg.com/shards/${process.env.PUBG_PLATFORM || "steam"}/matches/${matchId}`,
           {
@@ -83,7 +98,6 @@ export async function GET(request: NextRequest) {
           continue;
         }
 
-        // Download and process telemetry
         try {
           const telRes = await fetch(telemetryUrl, {
             headers: { "Accept-Encoding": "gzip" },
@@ -95,7 +109,6 @@ export async function GET(request: NextRequest) {
           const events: TelemetryEvent[] = await telRes.json();
           const trackedSet = new Set(TRACKED_PLAYERS);
 
-          // Aggregate per player per weapon for this match
           interface WepAccum {
             kills: number; knocks: number; damage: number; headshots: number; hits: number;
             totalKillDist: number; longestKillDist: number;
@@ -109,11 +122,6 @@ export async function GET(request: NextRequest) {
               kills: 0, knocks: 0, damage: 0, headshots: 0, hits: 0,
               totalKillDist: 0, longestKillDist: 0,
             };
-          }
-
-          function ensureDeath(name: string, cause: string) {
-            if (!deathAccum[name]) deathAccum[name] = {};
-            if (!deathAccum[name][cause]) deathAccum[name][cause] = 0;
           }
 
           for (const e of events) {
@@ -134,11 +142,20 @@ export async function GET(request: NextRequest) {
                 const w = getWeaponName(info.damageCauserName);
                 ensure(name, w);
                 matchStats[name][w].kills += 1;
-                const dist = (info.distance || 0) / 100; // cm to meters
+                const dist = (info.distance || 0) / 100;
                 matchStats[name][w].totalKillDist += dist;
                 if (dist > matchStats[name][w].longestKillDist) {
                   matchStats[name][w].longestKillDist = dist;
                 }
+              }
+
+              // Track deaths where victim is a tracked player
+              const victim = e.victim?.name;
+              if (victim && trackedSet.has(victim) && e.killerDamageInfo) {
+                const cause = getWeaponName(e.killerDamageInfo.damageCauserName);
+                if (!deathAccum[victim]) deathAccum[victim] = {};
+                if (!deathAccum[victim][cause]) deathAccum[victim][cause] = 0;
+                deathAccum[victim][cause] += 1;
               }
             }
 
@@ -150,19 +167,8 @@ export async function GET(request: NextRequest) {
                 matchStats[name][w].knocks += 1;
               }
             }
-
-            // Track deaths where victim is a tracked player
-            if (e._T === "LogPlayerKillV2") {
-              const victim = e.victim?.name;
-              if (victim && trackedSet.has(victim) && e.killerDamageInfo) {
-                const cause = getWeaponName(e.killerDamageInfo.damageCauserName);
-                ensureDeath(victim, cause);
-                deathAccum[victim][cause] += 1;
-              }
-            }
           }
 
-          // Save to DB
           for (const [playerName, weapons] of Object.entries(matchStats)) {
             for (const [weapon, stats] of Object.entries(weapons)) {
               await upsertWeaponStat(
@@ -173,7 +179,6 @@ export async function GET(request: NextRequest) {
             }
           }
 
-          // Save death stats
           for (const [playerName, causes] of Object.entries(deathAccum)) {
             for (const [cause, count] of Object.entries(causes)) {
               await upsertDeathStat(playerName, cause, count);
@@ -190,19 +195,22 @@ export async function GET(request: NextRequest) {
         await new Promise((r) => setTimeout(r, 500));
       }
 
-      // Return fresh data
-      const [allStats, allDeaths, dateRange] = await Promise.all([
-        getAllWeaponStats(), getAllDeathStats(), getProcessedMatchesDateRange(),
-      ]);
+      // Chain next batch
+      const nextStart = (step + 1) * BATCH_SIZE;
+      if (nextStart < TRACKED_PLAYERS.length) {
+        const url = new URL(request.url);
+        url.searchParams.set("step", String(step + 1));
+        fetch(url.toString()).catch(() => {});
+      }
+
       return NextResponse.json({
-        weapons: groupByPlayer(allStats),
-        deaths: groupByPlayer(allDeaths),
-        dateRange,
-        newMatchesProcessed: processed,
+        success: true,
+        step,
+        matchesProcessed: processed,
       });
     }
 
-    // Just return stored data
+    // Just return stored data (no refresh)
     const [allStats, allDeaths, dateRange] = await Promise.all([
       getAllWeaponStats(), getAllDeathStats(), getProcessedMatchesDateRange(),
     ]);
@@ -210,7 +218,6 @@ export async function GET(request: NextRequest) {
       weapons: groupByPlayer(allStats),
       deaths: groupByPlayer(allDeaths),
       dateRange,
-      newMatchesProcessed: 0,
     });
   } catch (error) {
     console.error("Weapons error:", error);
