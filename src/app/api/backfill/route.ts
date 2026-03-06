@@ -6,7 +6,7 @@ import {
   getSeasonStats,
   getLifetimeStats,
 } from "@/lib/pubg-api";
-import { upsertPlayer, insertSnapshot, initDb, getExistingBackfillSeasons } from "@/lib/db";
+import { upsertPlayer, insertSnapshot, initDb, getExistingBackfillSeasons, getPlayerFromDb } from "@/lib/db";
 import { TRACKED_PLAYERS } from "@/lib/types";
 
 export const maxDuration = 60;
@@ -33,18 +33,33 @@ export async function GET(request: NextRequest) {
 
     const existing = await getExistingBackfillSeasons();
 
-    const player = await getPlayerByName(playerName);
+    // Try DB first (avoids extra API call), fallback to API
+    const dbPlayer = await getPlayerFromDb(playerName);
+    let player: { name: string; id: string } | null = null;
+
+    if (dbPlayer) {
+      player = { name: dbPlayer.name, id: dbPlayer.pubgId };
+    } else {
+      const apiPlayer = await getPlayerByName(playerName);
+      if (apiPlayer) {
+        player = { name: apiPlayer.name, id: apiPlayer.id };
+        await upsertPlayer(player.name, player.id);
+      }
+      await new Promise((r) => setTimeout(r, RATE_LIMIT_MS));
+    }
+
     if (!player) {
       // Skip to next player
       const url = new URL(request.url);
       url.searchParams.set("player", String(playerIdx + 1));
       url.searchParams.set("step", "0");
       waitUntil(fetch(url.toString()).catch(() => {}));
-      return NextResponse.json({ success: true, player: playerName, message: "NOT FOUND, skipping" });
+      return NextResponse.json({
+        success: true,
+        player: playerName,
+        message: "NOT FOUND, skipping",
+      });
     }
-
-    await upsertPlayer(player.name, player.id);
-    await new Promise((r) => setTimeout(r, RATE_LIMIT_MS));
 
     // On first step for this player, fetch lifetime stats
     if (step === 0) {

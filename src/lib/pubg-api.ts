@@ -19,7 +19,8 @@ export async function getPlayerByName(
     { headers: headers() }
   );
   if (!res.ok) {
-    console.error(`Failed to fetch player ${name}: ${res.status}`);
+    const body = await res.text().catch(() => "");
+    console.error(`Failed to fetch player ${name}: ${res.status} ${body}`);
     return null;
   }
   const data = await res.json();

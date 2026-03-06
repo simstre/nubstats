@@ -56,6 +56,12 @@ export async function upsertPlayer(name: string, pubgId: string) {
   );
 }
 
+export async function getPlayerFromDb(name: string): Promise<{ name: string; pubgId: string } | null> {
+  const result = await query(`SELECT name, pubg_id FROM players WHERE name = $1`, [name]);
+  if (result.rows.length === 0) return null;
+  return { name: result.rows[0].name, pubgId: result.rows[0].pubg_id };
+}
+
 export async function insertSnapshot(
   playerName: string,
   pubgId: string,
