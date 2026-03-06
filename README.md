@@ -1,36 +1,32 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# PUBG NUB
 
-## Getting Started
+Squad stats tracker for the NUB crew. Tracks lifetime stats, per-season history, weapon usage, death causes, and recent matches from the PUBG API.
 
-First, run the development server:
+**Live:** https://pubg-tracker-six.vercel.app
 
-```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
-```
+## Features
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+- **Leaderboard** — Compare squad members across K/D, kills/game, damage/game, win rate, and more
+- **Player Stats** — Detailed per-player stats with per-game breakdowns
+- **Recent Matches** — Match history with per-player performance
+- **Weapons** — Weapon stats from match telemetry (kills, damage, accuracy, kill distance)
+- **Deaths** — Death cause tracking from match telemetry
+- **History** — Season-over-season trends charted for all players
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## Tech Stack
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+- Next.js 15 (App Router)
+- PostgreSQL (Neon)
+- PUBG API
+- Tailwind CSS
+- Deployed on Vercel (free tier)
 
-## Learn More
+## Data Pipeline
 
-To learn more about Next.js, take a look at the following resources:
+- **Daily cron (11:00 UTC):** Fetches current season + lifetime stats for all players
+- **Daily cron (11:30 UTC):** Processes match telemetry for weapon/death stats and stores match details
+- All long-running jobs are batched into chained serverless functions (< 60s each) for Vercel free tier compatibility
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+## Tracked Players
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
-
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+Silvertibby · alhole · RetroGames84 · Musaz · EmitMaj · xxXDRAMAXxx
