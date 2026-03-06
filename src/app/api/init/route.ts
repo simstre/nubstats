@@ -1,6 +1,10 @@
 import { NextResponse } from "next/server";
 import { initDb, initWeaponTables } from "@/lib/db";
 
+export async function GET() {
+  return POST();
+}
+
 export async function POST() {
   try {
     await initDb();
