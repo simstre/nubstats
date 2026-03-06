@@ -65,8 +65,12 @@ export function MatchHistory() {
 
   useEffect(() => {
     let cancelled = false;
-    fetch("/api/matches")
-      .then((r) => r.json())
+    const controller = new AbortController();
+    fetch("/api/matches", { signal: controller.signal })
+      .then((r) => {
+        if (!r.ok) throw new Error(`HTTP ${r.status}`);
+        return r.json();
+      })
       .then((data) => {
         if (!cancelled) {
           if (data.error) {
@@ -77,12 +81,12 @@ export function MatchHistory() {
         }
       })
       .catch((err) => {
-        if (!cancelled) setError(String(err));
+        if (!cancelled && err.name !== "AbortError") setError(String(err));
       })
       .finally(() => {
         if (!cancelled) setLoading(false);
       });
-    return () => { cancelled = true; };
+    return () => { cancelled = true; controller.abort(); };
   }, []);
 
   if (loading) {

@@ -20,8 +20,15 @@ type SortKey =
   | "matches_used" | "dmgPerHit" | "killsPerGame" | "dmgPerGame"
   | "knockConv" | "avgKillDist" | "longest_kill_distance";
 
+interface DateRange {
+  earliest: string | null;
+  latest: string | null;
+  count: number;
+}
+
 export function WeaponStats() {
   const [data, setData] = useState<Record<string, WeaponStat[]>>({});
+  const [dateRange, setDateRange] = useState<DateRange | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [selectedPlayer, setSelectedPlayer] = useState<string>("all");
@@ -36,6 +43,7 @@ export function WeaponStats() {
         setError(json.error);
       } else {
         setData(json.weapons || {});
+        setDateRange(json.dateRange || null);
         setError(null);
       }
     } catch (err) {
@@ -167,8 +175,11 @@ export function WeaponStats() {
       </div>
 
       <p className="text-xs text-zinc-500">
-        Weapon stats accumulate from match telemetry (last 14 days only — PUBG does not retain older match data). Updated daily via cron.
-        Click any column header to sort. <span className="text-zinc-400">Kills/G</span> = kills per game, <span className="text-zinc-400">Dmg/G</span> = damage per game, <span className="text-zinc-400">Kill %</span> = knock-to-kill conversion rate.
+        Weapon stats accumulate from match telemetry (PUBG only retains match data for 14 days). Updated daily via cron.
+        {dateRange && dateRange.count > 0 && (
+          <> Based on <span className="text-zinc-300">{dateRange.count} matches</span> processed between <span className="text-zinc-300">{new Date(dateRange.earliest!).toLocaleDateString()}</span> and <span className="text-zinc-300">{new Date(dateRange.latest!).toLocaleDateString()}</span>.</>
+        )}
+        {" "}Click any column header to sort. <span className="text-zinc-400">Kills/G</span> = kills per game, <span className="text-zinc-400">Dmg/G</span> = damage per game, <span className="text-zinc-400">Kill %</span> = knock-to-kill conversion rate.
       </p>
 
       {weapons.length === 0 ? (

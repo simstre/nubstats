@@ -252,6 +252,18 @@ export async function getAllDeathStats() {
   return result.rows;
 }
 
+export async function getProcessedMatchesDateRange(): Promise<{ earliest: string | null; latest: string | null; count: number }> {
+  const result = await query(
+    `SELECT MIN(processed_at) as earliest, MAX(processed_at) as latest, COUNT(*)::int as count FROM processed_matches`
+  );
+  const row = result.rows[0];
+  return {
+    earliest: row?.earliest ? String(row.earliest) : null,
+    latest: row?.latest ? String(row.latest) : null,
+    count: row?.count || 0,
+  };
+}
+
 export async function getExistingBackfillSeasons(): Promise<Set<string>> {
   const result = await query(
     `SELECT DISTINCT player_name, season_id FROM stat_snapshots WHERE season_id != 'lifetime'`

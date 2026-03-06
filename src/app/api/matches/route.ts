@@ -3,48 +3,51 @@ import { getPlayerWithMatches, getMatch } from "@/lib/pubg-api";
 import { TRACKED_PLAYERS } from "@/lib/types";
 
 export const dynamic = "force-dynamic";
-export const maxDuration = 60;
+export const maxDuration = 120;
 
 export async function GET() {
   try {
-    // Get match IDs from all players
+    // Get match IDs from all players — fetch sequentially with rate limit
     const allMatchIds = new Set<string>();
-    const playerMatchMap: Record<string, string[]> = {};
 
     for (const name of TRACKED_PLAYERS) {
-      const player = await getPlayerWithMatches(name);
-      if (player) {
-        playerMatchMap[name] = player.matchIds;
-        for (const id of player.matchIds) {
-          allMatchIds.add(id);
+      try {
+        const player = await getPlayerWithMatches(name);
+        if (player) {
+          for (const id of player.matchIds) {
+            allMatchIds.add(id);
+          }
         }
+      } catch (err) {
+        console.error(`Failed to fetch matches for ${name}:`, err);
       }
-      // Rate limit
       await new Promise((r) => setTimeout(r, 6500));
     }
 
-    // Fetch details for unique matches (limit to most recent 10 to avoid rate limits)
+    // Fetch details for unique matches (limit to most recent 10)
     const matchIds = [...allMatchIds].slice(0, 10);
     const matches = [];
 
     for (const matchId of matchIds) {
-      const match = await getMatch(matchId);
-      if (match) {
-        // Only include participants that are tracked players
-        const trackedParticipants = match.participants.filter((p) =>
-          TRACKED_PLAYERS.includes(p.name)
-        );
-        matches.push({
-          ...match,
-          participants: match.participants,
-          trackedParticipants,
-          totalParticipants: match.participants.length,
-        });
+      try {
+        const match = await getMatch(matchId);
+        if (match) {
+          const trackedParticipants = match.participants.filter((p) =>
+            TRACKED_PLAYERS.includes(p.name)
+          );
+          matches.push({
+            ...match,
+            participants: match.participants,
+            trackedParticipants,
+            totalParticipants: match.participants.length,
+          });
+        }
+      } catch (err) {
+        console.error(`Failed to fetch match ${matchId}:`, err);
       }
       await new Promise((r) => setTimeout(r, 500));
     }
 
-    // Sort by date descending
     matches.sort(
       (a, b) =>
         new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()

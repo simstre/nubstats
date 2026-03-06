@@ -11,6 +11,7 @@ import {
   getAllWeaponStats,
   upsertDeathStat,
   getAllDeathStats,
+  getProcessedMatchesDateRange,
 } from "@/lib/db";
 
 export const dynamic = "force-dynamic";
@@ -190,21 +191,25 @@ export async function GET(request: NextRequest) {
       }
 
       // Return fresh data
-      const allStats = await getAllWeaponStats();
-      const allDeaths = await getAllDeathStats();
+      const [allStats, allDeaths, dateRange] = await Promise.all([
+        getAllWeaponStats(), getAllDeathStats(), getProcessedMatchesDateRange(),
+      ]);
       return NextResponse.json({
         weapons: groupByPlayer(allStats),
         deaths: groupByPlayer(allDeaths),
+        dateRange,
         newMatchesProcessed: processed,
       });
     }
 
     // Just return stored data
-    const allStats = await getAllWeaponStats();
-    const allDeaths = await getAllDeathStats();
+    const [allStats, allDeaths, dateRange] = await Promise.all([
+      getAllWeaponStats(), getAllDeathStats(), getProcessedMatchesDateRange(),
+    ]);
     return NextResponse.json({
       weapons: groupByPlayer(allStats),
       deaths: groupByPlayer(allDeaths),
+      dateRange,
       newMatchesProcessed: 0,
     });
   } catch (error) {

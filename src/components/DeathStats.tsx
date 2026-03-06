@@ -8,10 +8,17 @@ interface DeathStat {
   deaths: number;
 }
 
+interface DateRange {
+  earliest: string | null;
+  latest: string | null;
+  count: number;
+}
+
 type SortKey = "cause" | "deaths";
 
 export function DeathStats() {
   const [data, setData] = useState<Record<string, DeathStat[]>>({});
+  const [dateRange, setDateRange] = useState<DateRange | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [selectedPlayer, setSelectedPlayer] = useState<string>("all");
@@ -25,7 +32,7 @@ export function DeathStats() {
       .then((json) => {
         if (!cancelled) {
           if (json.error) setError(json.error);
-          else { setData(json.deaths || {}); setError(null); }
+          else { setData(json.deaths || {}); setDateRange(json.dateRange || null); setError(null); }
         }
       })
       .catch((err) => { if (!cancelled) setError(String(err)); })
@@ -111,8 +118,12 @@ export function DeathStats() {
       </div>
 
       <p className="text-xs text-zinc-500">
-        How your squad dies. Data comes from match telemetry (last 14 days only — PUBG does not retain older match data).
-        Stats accumulate over time as new matches are processed daily. Click column headers to sort.
+        How your squad dies. Data comes from match telemetry (PUBG only retains match data for 14 days).
+        Stats accumulate over time as new matches are processed daily.
+        {dateRange && dateRange.count > 0 && (
+          <> Based on <span className="text-zinc-300">{dateRange.count} matches</span> processed between <span className="text-zinc-300">{new Date(dateRange.earliest!).toLocaleDateString()}</span> and <span className="text-zinc-300">{new Date(dateRange.latest!).toLocaleDateString()}</span>.</>
+        )}
+        {" "}Click column headers to sort.
       </p>
 
       {deaths.length === 0 ? (

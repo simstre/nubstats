@@ -74,6 +74,13 @@ export interface ComputedStats extends PubgPlayerStats {
   headshotRate: number;
   avgTimeSurvived: number;
   totalDistance: number;
+  killsPerGame: number;
+  assistsPerGame: number;
+  dbnosPerGame: number;
+  revivesPerGame: number;
+  healsPerGame: number;
+  boostsPerGame: number;
+  top10Rate: number;
 }
 
 export function computeStats(raw: PubgPlayerStats): ComputedStats {
@@ -91,5 +98,12 @@ export function computeStats(raw: PubgPlayerStats): ComputedStats {
     totalDistance: parseFloat(
       (raw.walkDistance + raw.rideDistance + raw.swimDistance).toFixed(0)
     ),
+    killsPerGame: parseFloat((raw.kills / roundsPlayed).toFixed(2)),
+    assistsPerGame: parseFloat((raw.assists / roundsPlayed).toFixed(2)),
+    dbnosPerGame: parseFloat((raw.dBNOs / roundsPlayed).toFixed(2)),
+    revivesPerGame: parseFloat((raw.revives / roundsPlayed).toFixed(2)),
+    healsPerGame: parseFloat((raw.heals / roundsPlayed).toFixed(1)),
+    boostsPerGame: parseFloat((raw.boosts / roundsPlayed).toFixed(1)),
+    top10Rate: parseFloat(((raw.top10s / roundsPlayed) * 100).toFixed(1)),
   };
 }

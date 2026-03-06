@@ -46,8 +46,10 @@ export function PlayerStatsPanel({
       <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
         <StatCard label="K/D Ratio" value={s.kd} highlight />
         <StatCard label="Win Rate" value={`${s.winRate}%`} highlight />
-        <StatCard label="Avg Damage" value={s.avgDamage} highlight />
+        <StatCard label="Avg Damage / Game" value={s.avgDamage} highlight />
         <StatCard label="Headshot %" value={`${s.headshotRate}%`} highlight />
+        <StatCard label="Kills / Game" value={s.killsPerGame} highlight />
+        <StatCard label="Top 10 Rate" value={`${s.top10Rate}%`} highlight />
 
         <StatCard label="Kills" value={s.kills.toLocaleString()} />
         <StatCard label="Losses" value={s.losses.toLocaleString()} />
@@ -55,6 +57,11 @@ export function PlayerStatsPanel({
         <StatCard label="Top 10s" value={s.top10s.toLocaleString()} />
         <StatCard label="Games Played" value={s.roundsPlayed.toLocaleString()} />
         <StatCard label="Assists" value={s.assists.toLocaleString()} />
+        <StatCard label="Assists / Game" value={s.assistsPerGame} />
+        <StatCard label="Knocks / Game" value={s.dbnosPerGame} />
+        <StatCard label="Revives / Game" value={s.revivesPerGame} />
+        <StatCard label="Heals / Game" value={s.healsPerGame} />
+        <StatCard label="Boosts / Game" value={s.boostsPerGame} />
         <StatCard label="Headshot Kills" value={s.headshotKills.toLocaleString()} />
         <StatCard label="DBNOs" value={s.dBNOs.toLocaleString()} />
         <StatCard label="Revives" value={s.revives.toLocaleString()} />
