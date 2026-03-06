@@ -111,8 +111,8 @@ export function DeathStats() {
       </div>
 
       <p className="text-xs text-zinc-500">
-        How your squad dies. Tracked from telemetry data, updated daily via cron.
-        Click column headers to sort.
+        How your squad dies. Data comes from match telemetry (last 14 days only — PUBG does not retain older match data).
+        Stats accumulate over time as new matches are processed daily. Click column headers to sort.
       </p>
 
       {deaths.length === 0 ? (

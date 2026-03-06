@@ -167,7 +167,7 @@ export function WeaponStats() {
       </div>
 
       <p className="text-xs text-zinc-500">
-        Weapon stats accumulate from telemetry data, updated daily via cron.
+        Weapon stats accumulate from match telemetry (last 14 days only — PUBG does not retain older match data). Updated daily via cron.
         Click any column header to sort. <span className="text-zinc-400">Kills/G</span> = kills per game, <span className="text-zinc-400">Dmg/G</span> = damage per game, <span className="text-zinc-400">Kill %</span> = knock-to-kill conversion rate.
       </p>
 
