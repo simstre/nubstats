@@ -35,8 +35,6 @@ export function Dashboard() {
   const [gameMode] = useState<GameMode>("squad");
   const [selectedPlayer, setSelectedPlayer] = useState(TRACKED_PLAYERS[0]);
   const [tab, setTab] = useState<Tab>("leaderboard");
-  const [fetching, setFetching] = useState(false);
-  const [fetchResult, setFetchResult] = useState<string | null>(null);
   const [backfilling, setBackfilling] = useState(false);
   const [backfillLog, setBackfillLog] = useState<string[]>([]);
   const [backfillDone, setBackfillDone] = useState(false);
@@ -68,28 +66,6 @@ export function Dashboard() {
     setSelectedSeason(season);
     setLoading(true);
     await loadStats(season);
-  };
-
-  const handleFetch = async () => {
-    setFetching(true);
-    setFetchResult(null);
-    try {
-      await fetch("/api/init", { method: "POST" });
-      const res = await fetch("/api/cron/fetch-stats");
-      const data = await res.json();
-      setFetchResult(
-        data.success
-          ? `Fetched: ${Object.entries(data.results)
-              .map(([k, v]) => `${k}: ${v}`)
-              .join(", ")}`
-          : `Error: ${data.error}`
-      );
-      await loadStats();
-    } catch (err) {
-      setFetchResult(`Error: ${err}`);
-    } finally {
-      setFetching(false);
-    }
   };
 
   const handleBackfill = async () => {
@@ -150,33 +126,14 @@ export function Dashboard() {
               {!backfillDone && (
                 <button
                   onClick={handleBackfill}
-                  disabled={backfilling || fetching}
+                  disabled={backfilling}
                   className="px-3 py-2 bg-zinc-700 text-zinc-200 font-medium rounded-lg hover:bg-zinc-600 disabled:opacity-50 disabled:cursor-not-allowed transition text-sm"
                 >
                   {backfilling ? "Backfilling..." : "Backfill All Seasons"}
                 </button>
               )}
-              <button
-                onClick={handleFetch}
-                disabled={fetching || backfilling}
-                className="px-4 py-2 bg-yellow-500 text-black font-semibold rounded-lg hover:bg-yellow-400 disabled:opacity-50 disabled:cursor-not-allowed transition text-sm"
-              >
-                {fetching ? "Fetching..." : "Fetch Stats Now"}
-              </button>
             </div>
           </div>
-
-          {fetchResult && (
-            <div
-              className={`mt-2 text-xs px-3 py-2 rounded ${
-                fetchResult.startsWith("Error")
-                  ? "bg-red-900/50 text-red-300"
-                  : "bg-green-900/50 text-green-300"
-              }`}
-            >
-              {fetchResult}
-            </div>
-          )}
         </div>
       </header>
 
@@ -296,27 +253,14 @@ export function Dashboard() {
           <div className="text-center py-20">
             <p className="text-red-400 mb-4">Failed to load stats</p>
             <p className="text-zinc-500 text-sm mb-4">{error}</p>
-            <button
-              onClick={handleFetch}
-              className="px-4 py-2 bg-yellow-500 text-black font-semibold rounded-lg"
-            >
-              Initialize &amp; Fetch Stats
-            </button>
           </div>
         ) : snapshots.length === 0 ? (
           <div className="text-center py-20">
             <div className="text-6xl mb-4">{"\u{1F3AF}"}</div>
             <h2 className="text-xl font-bold mb-2">No Stats Yet</h2>
             <p className="text-zinc-500 mb-6">
-              Click &quot;Fetch Stats Now&quot; to pull your squad&apos;s PUBG stats
+              Stats are fetched daily at 11:00 UTC via cron.
             </p>
-            <button
-              onClick={handleFetch}
-              disabled={fetching}
-              className="px-6 py-3 bg-yellow-500 text-black font-semibold rounded-lg hover:bg-yellow-400 disabled:opacity-50"
-            >
-              {fetching ? "Fetching..." : "Fetch Stats Now"}
-            </button>
           </div>
         ) : (
           <>
