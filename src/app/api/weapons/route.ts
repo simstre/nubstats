@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { waitUntil } from "@vercel/functions";
 import { getPlayerWithMatches } from "@/lib/pubg-api";
 import { TRACKED_PLAYERS } from "@/lib/types";
 import { getWeaponName } from "@/lib/weapon-names";
@@ -200,7 +201,7 @@ export async function GET(request: NextRequest) {
       if (nextStart < TRACKED_PLAYERS.length) {
         const url = new URL(request.url);
         url.searchParams.set("step", String(step + 1));
-        fetch(url.toString()).catch(() => {});
+        waitUntil(fetch(url.toString()).catch(() => {}));
       }
 
       return NextResponse.json({

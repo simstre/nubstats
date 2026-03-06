@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { waitUntil } from "@vercel/functions";
 import {
   getPlayerByName,
   getAllSeasons,
@@ -38,7 +39,7 @@ export async function GET(request: NextRequest) {
       const url = new URL(request.url);
       url.searchParams.set("player", String(playerIdx + 1));
       url.searchParams.set("step", "0");
-      fetch(url.toString()).catch(() => {});
+      waitUntil(fetch(url.toString()).catch(() => {}));
       return NextResponse.json({ success: true, player: playerName, message: "NOT FOUND, skipping" });
     }
 
