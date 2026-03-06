@@ -4,6 +4,11 @@ Squad stats tracker for the NUB crew. Tracks lifetime stats, per-season history,
 
 **Live:** https://pubg-tracker-six.vercel.app
 
+<img width="1293" height="849" alt="Screenshot 2026-03-06 at 3 31 35 PM" src="https://github.com/user-attachments/assets/3fa7b96f-2a4b-468c-a7b3-b62ff4e72de4" />
+<img width="1283" height="775" alt="Screenshot 2026-03-06 at 3 32 03 PM" src="https://github.com/user-attachments/assets/25c3c6ac-f426-4001-9fb9-fc438121387b" />
+<img width="1331" height="773" alt="Screenshot 2026-03-06 at 3 33 02 PM" src="https://github.com/user-attachments/assets/1467fcad-3a91-458c-bc1c-0271aec65217" />
+
+
 ## Features
 
 - **Leaderboard** — Compare squad members across K/D, kills/game, damage/game, win rate, and more
