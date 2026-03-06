@@ -15,6 +15,7 @@ const geistMono = Geist_Mono({
 export const metadata: Metadata = {
   title: "PUBG NUB",
   description: "Track and compare PUBG stats for the NUBZ squad",
+  icons: { icon: "/icon.png" },
 };
 
 export default function RootLayout({
