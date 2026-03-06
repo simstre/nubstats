@@ -20,15 +20,18 @@ interface HistoryRow {
 
 const COLORS = TRACKED_PLAYERS.map((p) => PLAYER_COLORS[p] || "#a1a1aa");
 const CHART_STATS = [
-  { key: "kills", label: "Kills" },
   { key: "kd", label: "K/D Ratio" },
-  { key: "wins", label: "Wins" },
+  { key: "killsPerGame", label: "Kills/Game" },
+  { key: "avgDamage", label: "Dmg/Game" },
   { key: "winRate", label: "Win Rate %" },
-  { key: "avgDamage", label: "Avg Damage" },
+  { key: "top10Rate", label: "Top 10 %" },
   { key: "headshotRate", label: "Headshot %" },
+  { key: "assistsPerGame", label: "Assists/Game" },
+  { key: "dbnosPerGame", label: "Knocks/Game" },
+  { key: "revivesPerGame", label: "Revives/Game" },
+  { key: "kills", label: "Total Kills" },
+  { key: "wins", label: "Total Wins" },
   { key: "roundsPlayed", label: "Games Played" },
-  { key: "top10s", label: "Top 10s" },
-  { key: "damageDealt", label: "Total Damage" },
   { key: "longestKill", label: "Longest Kill" },
 ];
 
