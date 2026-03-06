@@ -1,0 +1,12 @@
+{
+  "crons": [
+    {
+      "path": "/api/cron/fetch-stats",
+      "schedule": "0 11 * * *"
+    },
+    {
+      "path": "/api/weapons?refresh=true",
+      "schedule": "30 11 * * *"
+    }
+  ]
+}
