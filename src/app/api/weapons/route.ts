@@ -12,6 +12,8 @@ import {
   upsertDeathStat,
   getAllDeathStats,
   getProcessedMatchesDateRange,
+  upsertMatch,
+  getProcessedMatchIdsWithoutDetails,
 } from "@/lib/db";
 
 export const dynamic = "force-dynamic";
@@ -87,6 +89,31 @@ export async function GET(request: NextRequest) {
           continue;
         }
         const matchData = await matchRes.json();
+        const matchAttrs = matchData.data?.attributes;
+
+        // Store match details for tracked participants
+        if (matchAttrs) {
+          const trackedSet = new Set(TRACKED_PLAYERS);
+          const participants: Array<Record<string, unknown>> = [];
+          for (const inc of matchData.included || []) {
+            if (inc.type === "participant") {
+              const s = inc.attributes.stats;
+              if (trackedSet.has(s.name)) {
+                participants.push({
+                  name: s.name, kills: s.kills, damageDealt: s.damageDealt,
+                  assists: s.assists, dBNOs: s.DBNOs, headshotKills: s.headshotKills,
+                  revives: s.revives, timeSurvived: s.timeSurvived,
+                  winPlace: s.winPlace, killPlace: s.killPlace,
+                });
+              }
+            }
+          }
+          if (participants.length > 0) {
+            await upsertMatch(matchId, matchAttrs.mapName, matchAttrs.gameMode,
+              matchAttrs.duration, matchAttrs.createdAt, participants);
+          }
+        }
+
         let telemetryUrl = "";
         for (const inc of matchData.included || []) {
           if (inc.type === "asset") {
@@ -196,6 +223,46 @@ export async function GET(request: NextRequest) {
         await new Promise((r) => setTimeout(r, 500));
       }
 
+      // Backfill match details for previously processed matches (one-time migration)
+      let matchesBackfilled = 0;
+      if (step === 0) {
+        const missingIds = await getProcessedMatchIdsWithoutDetails();
+        for (const mid of missingIds.slice(0, 5)) {
+          try {
+            const mRes = await fetch(
+              `https://api.pubg.com/shards/${process.env.PUBG_PLATFORM || "steam"}/matches/${mid}`,
+              { headers: { Authorization: `Bearer ${process.env.PUBG_API_KEY}`, Accept: "application/vnd.api+json" } }
+            );
+            if (mRes.ok) {
+              const mData = await mRes.json();
+              const attrs = mData.data?.attributes;
+              if (attrs) {
+                const trackedSet = new Set(TRACKED_PLAYERS);
+                const parts: Array<Record<string, unknown>> = [];
+                for (const inc of mData.included || []) {
+                  if (inc.type === "participant") {
+                    const s = inc.attributes.stats;
+                    if (trackedSet.has(s.name)) {
+                      parts.push({
+                        name: s.name, kills: s.kills, damageDealt: s.damageDealt,
+                        assists: s.assists, dBNOs: s.DBNOs, headshotKills: s.headshotKills,
+                        revives: s.revives, timeSurvived: s.timeSurvived,
+                        winPlace: s.winPlace, killPlace: s.killPlace,
+                      });
+                    }
+                  }
+                }
+                if (parts.length > 0) {
+                  await upsertMatch(mid, attrs.mapName, attrs.gameMode, attrs.duration, attrs.createdAt, parts);
+                  matchesBackfilled++;
+                }
+              }
+            }
+          } catch { /* skip */ }
+          await new Promise((r) => setTimeout(r, 500));
+        }
+      }
+
       // Chain next batch
       const nextStart = (step + 1) * BATCH_SIZE;
       if (nextStart < TRACKED_PLAYERS.length) {
@@ -208,6 +275,7 @@ export async function GET(request: NextRequest) {
         success: true,
         step,
         matchesProcessed: processed,
+        matchesBackfilled,
       });
     }
 

@@ -124,6 +124,7 @@ export async function getSeasonsList() {
 }
 
 export async function initWeaponTables() {
+  await initMatchTable();
   await query(`
     CREATE TABLE IF NOT EXISTS weapon_stats (
       id SERIAL PRIMARY KEY,
@@ -161,6 +162,52 @@ export async function initWeaponTables() {
       UNIQUE(player_name, cause)
     )
   `);
+}
+
+export async function initMatchTable() {
+  await query(`
+    CREATE TABLE IF NOT EXISTS match_details (
+      match_id VARCHAR(255) PRIMARY KEY,
+      map_name VARCHAR(255) NOT NULL,
+      game_mode VARCHAR(100) NOT NULL,
+      duration INTEGER NOT NULL,
+      created_at TIMESTAMP NOT NULL,
+      participants JSONB NOT NULL
+    )
+  `);
+}
+
+export async function upsertMatch(
+  matchId: string,
+  mapName: string,
+  gameMode: string,
+  duration: number,
+  createdAt: string,
+  participants: Array<Record<string, unknown>>
+) {
+  await query(
+    `INSERT INTO match_details (match_id, map_name, game_mode, duration, created_at, participants)
+     VALUES ($1, $2, $3, $4, $5, $6)
+     ON CONFLICT (match_id) DO NOTHING`,
+    [matchId, mapName, gameMode, duration, createdAt, JSON.stringify(participants)]
+  );
+}
+
+export async function getRecentMatches(limit = 20) {
+  const result = await query(
+    `SELECT * FROM match_details ORDER BY created_at DESC LIMIT $1`,
+    [limit]
+  );
+  return result.rows;
+}
+
+export async function getProcessedMatchIdsWithoutDetails(): Promise<string[]> {
+  const result = await query(
+    `SELECT pm.match_id FROM processed_matches pm
+     LEFT JOIN match_details md ON pm.match_id = md.match_id
+     WHERE md.match_id IS NULL`
+  );
+  return result.rows.map((r) => r.match_id);
 }
 
 export async function isMatchProcessed(matchId: string): Promise<boolean> {
