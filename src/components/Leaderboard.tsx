@@ -31,10 +31,10 @@ const LEADERBOARD_STATS: { key: StatKey; label: string; format: (v: number) => s
   { key: "top10s", label: "Top 10 Finishes", format: (v) => v.toLocaleString() },
   { key: "longestKill", label: "Longest Kill", format: (v) => `${v.toFixed(0)}m` },
   { key: "roundsPlayed", label: "Games Played", format: (v) => v.toLocaleString() },
+  { key: "totalHoursPlayed", label: "Hours Played", format: (v) => `${v.toLocaleString()}h` },
   { key: "maxKillStreaks", label: "Best Kill Streak", format: (v) => v.toLocaleString() },
   { key: "damageDealt", label: "Total Damage", format: (v) => v.toLocaleString(undefined, { maximumFractionDigits: 0 }) },
   { key: "totalDistance", label: "Total Distance", format: (v) => `${(v / 1000).toFixed(1)}km` },
-  { key: "totalHoursPlayed", label: "Hours Played", format: (v) => `${v.toLocaleString()}h` },
 ];
 
 function getMedal(index: number) {
