@@ -82,6 +82,7 @@ export interface ComputedStats extends PubgPlayerStats {
   healsPerGame: number;
   boostsPerGame: number;
   top10Rate: number;
+  totalHoursPlayed: number;
 }
 
 export function computeStats(raw: PubgPlayerStats): ComputedStats {
@@ -106,5 +107,6 @@ export function computeStats(raw: PubgPlayerStats): ComputedStats {
     healsPerGame: parseFloat((raw.heals / roundsPlayed).toFixed(1)),
     boostsPerGame: parseFloat((raw.boosts / roundsPlayed).toFixed(1)),
     top10Rate: parseFloat(((raw.top10s / roundsPlayed) * 100).toFixed(1)),
+    totalHoursPlayed: parseFloat((raw.timeSurvived / 3600).toFixed(1)),
   };
 }

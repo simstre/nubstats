@@ -34,6 +34,7 @@ const LEADERBOARD_STATS: { key: StatKey; label: string; format: (v: number) => s
   { key: "maxKillStreaks", label: "Best Kill Streak", format: (v) => v.toLocaleString() },
   { key: "damageDealt", label: "Total Damage", format: (v) => v.toLocaleString(undefined, { maximumFractionDigits: 0 }) },
   { key: "totalDistance", label: "Total Distance", format: (v) => `${(v / 1000).toFixed(1)}km` },
+  { key: "totalHoursPlayed", label: "Hours Played", format: (v) => `${v.toLocaleString()}h` },
 ];
 
 function getMedal(index: number) {
