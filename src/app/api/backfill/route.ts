@@ -50,10 +50,11 @@ export async function GET(request: NextRequest) {
 
     if (!player) {
       // Skip to next player
-      const url = new URL(request.url);
-      url.searchParams.set("player", String(playerIdx + 1));
-      url.searchParams.set("step", "0");
-      waitUntil(fetch(url.toString()).catch(() => {}));
+      const baseUrl = process.env.VERCEL_URL
+        ? `https://${process.env.VERCEL_URL}`
+        : new URL(request.url).origin;
+      const nextUrl = `${baseUrl}/api/backfill?player=${playerIdx + 1}&step=0`;
+      waitUntil(fetch(nextUrl).catch((err) => console.error("Chain failed:", err)));
       return NextResponse.json({
         success: true,
         player: playerName,
@@ -102,18 +103,17 @@ export async function GET(request: NextRequest) {
 
     // Determine next action: more seasons for this player, or next player
     const nextSeasonStart = (step + 1) * SEASONS_PER_STEP;
-    const url = new URL(request.url);
+    const baseUrl = process.env.VERCEL_URL
+      ? `https://${process.env.VERCEL_URL}`
+      : new URL(request.url).origin;
 
+    let nextUrl: string;
     if (nextSeasonStart < seasons.length) {
-      // More seasons for this player
-      url.searchParams.set("player", String(playerIdx));
-      url.searchParams.set("step", String(step + 1));
+      nextUrl = `${baseUrl}/api/backfill?player=${playerIdx}&step=${step + 1}`;
     } else {
-      // Next player
-      url.searchParams.set("player", String(playerIdx + 1));
-      url.searchParams.set("step", "0");
+      nextUrl = `${baseUrl}/api/backfill?player=${playerIdx + 1}&step=0`;
     }
-    fetch(url.toString()).catch(() => {});
+    waitUntil(fetch(nextUrl).catch((err) => console.error("Chain failed:", err)));
 
     return NextResponse.json({
       success: true,

@@ -7,7 +7,7 @@ export const dynamic = "force-dynamic";
 export async function GET() {
   try {
     await initWeaponTables();
-    const rows = await getRecentMatches(20);
+    const rows = await getRecentMatches(30);
 
     const matches = rows.map((row) => {
       const participants = row.participants as Array<Record<string, unknown>>;

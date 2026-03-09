@@ -117,9 +117,11 @@ export async function GET(request: NextRequest) {
       // Chain next batch
       const nextStart = (step + 1) * batchSize;
       if (nextStart < matchIds.length) {
-        const url = new URL(request.url);
-        url.searchParams.set("step", String(step + 1));
-        waitUntil(fetch(url.toString()).catch(() => {}));
+        const baseUrl = process.env.VERCEL_URL
+          ? `https://${process.env.VERCEL_URL}`
+          : new URL(request.url).origin;
+        const nextUrl = `${baseUrl}/api/weapons?reprocess=${reprocessPlayer}&step=${step + 1}`;
+        waitUntil(fetch(nextUrl).catch((err) => console.error("Chain failed:", err)));
       }
 
       return NextResponse.json({ success: true, player: reprocessPlayer, step, matchesReprocessed: processed, totalMatches: matchIds.length });
@@ -347,9 +349,11 @@ export async function GET(request: NextRequest) {
       // Chain next batch
       const nextStart = (step + 1) * BATCH_SIZE;
       if (nextStart < TRACKED_PLAYERS.length) {
-        const url = new URL(request.url);
-        url.searchParams.set("step", String(step + 1));
-        waitUntil(fetch(url.toString()).catch(() => {}));
+        const baseUrl = process.env.VERCEL_URL
+          ? `https://${process.env.VERCEL_URL}`
+          : new URL(request.url).origin;
+        const nextUrl = `${baseUrl}/api/weapons?refresh=true&step=${step + 1}`;
+        waitUntil(fetch(nextUrl).catch((err) => console.error("Chain failed:", err)));
       }
 
       return NextResponse.json({

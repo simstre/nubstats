@@ -6,13 +6,13 @@ import {
   getLifetimeStats,
   getSeasonStats,
 } from "@/lib/pubg-api";
-import { upsertPlayer, insertSnapshot, initDb } from "@/lib/db";
+import { upsertPlayer, insertSnapshot, initDb, getPlayerFromDb } from "@/lib/db";
 import { TRACKED_PLAYERS } from "@/lib/types";
 
 export const maxDuration = 60;
 
-const RATE_LIMIT_MS = 6500;
-const BATCH_SIZE = 2;
+const RATE_LIMIT_MS = 6000;
+const BATCH_SIZE = 3;
 
 export async function GET(request: NextRequest) {
   const authHeader = request.headers.get("authorization");
@@ -41,29 +41,39 @@ export async function GET(request: NextRequest) {
 
     for (const playerName of batch) {
       try {
-        const player = await getPlayerByName(playerName);
-        if (!player) {
-          results[playerName] = "Player not found";
+        // Use DB for player ID, fallback to API
+        const dbPlayer = await getPlayerFromDb(playerName);
+        let playerId: string | null = null;
+
+        if (dbPlayer) {
+          playerId = dbPlayer.pubgId;
+        } else {
+          const apiPlayer = await getPlayerByName(playerName);
+          if (apiPlayer) {
+            playerId = apiPlayer.id;
+            await upsertPlayer(apiPlayer.name, apiPlayer.id);
+          }
           await new Promise((r) => setTimeout(r, RATE_LIMIT_MS));
+        }
+
+        if (!playerId) {
+          results[playerName] = "Player not found";
           continue;
         }
 
-        await upsertPlayer(player.name, player.id);
-        await new Promise((r) => setTimeout(r, RATE_LIMIT_MS));
-
-        const lifetimeStats = await getLifetimeStats(player.id);
+        const lifetimeStats = await getLifetimeStats(playerId);
         if (lifetimeStats?.squad && lifetimeStats.squad.roundsPlayed > 0) {
           await insertSnapshot(
-            player.name, player.id, "lifetime", "squad", lifetimeStats.squad
+            playerName, playerId, "lifetime", "squad", lifetimeStats.squad
           );
         }
         await new Promise((r) => setTimeout(r, RATE_LIMIT_MS));
 
         if (seasonId) {
-          const seasonStats = await getSeasonStats(player.id, seasonId);
+          const seasonStats = await getSeasonStats(playerId, seasonId);
           if (seasonStats?.squad && seasonStats.squad.roundsPlayed > 0) {
             await insertSnapshot(
-              player.name, player.id, seasonId, "squad", seasonStats.squad
+              playerName, playerId, seasonId, "squad", seasonStats.squad
             );
           }
           await new Promise((r) => setTimeout(r, RATE_LIMIT_MS));
@@ -78,9 +88,11 @@ export async function GET(request: NextRequest) {
     // Chain next batch
     const nextStart = (step + 1) * BATCH_SIZE;
     if (nextStart < TRACKED_PLAYERS.length) {
-      const url = new URL(request.url);
-      url.searchParams.set("step", String(step + 1));
-      waitUntil(fetch(url.toString()).catch(() => {}));
+      const baseUrl = process.env.VERCEL_URL
+        ? `https://${process.env.VERCEL_URL}`
+        : new URL(request.url).origin;
+      const nextUrl = `${baseUrl}/api/cron/fetch-stats?step=${step + 1}`;
+      waitUntil(fetch(nextUrl).catch((err) => console.error("Chain failed:", err)));
     }
 
     return NextResponse.json({ success: true, step, results });
