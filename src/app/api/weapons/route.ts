@@ -21,7 +21,7 @@ export const dynamic = "force-dynamic";
 export const maxDuration = 60;
 
 const BATCH_SIZE = 2;
-const MAX_MATCHES_PER_STEP = 5;
+const MAX_MATCHES_PER_STEP = 10;
 
 interface TelemetryEvent {
   _T: string;
