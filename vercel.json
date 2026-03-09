@@ -1,12 +1,8 @@
 {
   "crons": [
     {
-      "path": "/api/cron/fetch-stats?step=0",
+      "path": "/api/cron/daily",
       "schedule": "0 11 * * *"
-    },
-    {
-      "path": "/api/weapons?refresh=true&step=0",
-      "schedule": "30 11 * * *"
     }
   ]
 }
