@@ -44,13 +44,6 @@ function mapLabel(raw: string): string {
   return MAP_NAMES[raw] || raw;
 }
 
-function placeSuffix(n: number): string {
-  if (n === 1) return "st";
-  if (n === 2) return "nd";
-  if (n === 3) return "rd";
-  return "th";
-}
-
 function placeColor(place: number): string {
   if (place === 1) return "#facc15";
   if (place <= 3) return "#fb923c";
@@ -61,33 +54,42 @@ function placeColor(place: number): string {
 export function MatchHistory() {
   const [matches, setMatches] = useState<Match[]>([]);
   const [loading, setLoading] = useState(true);
+  const [scanning, setScanning] = useState(false);
+  const [scanResult, setScanResult] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+
+  const loadMatches = async (signal?: AbortSignal) => {
+    const r = await fetch("/api/matches", { signal });
+    if (!r.ok) throw new Error(`HTTP ${r.status}`);
+    const data = await r.json();
+    if (data.error) throw new Error(data.error);
+    setMatches(data.matches || []);
+  };
 
   useEffect(() => {
     let cancelled = false;
     const controller = new AbortController();
-    fetch("/api/matches", { signal: controller.signal })
-      .then((r) => {
-        if (!r.ok) throw new Error(`HTTP ${r.status}`);
-        return r.json();
-      })
-      .then((data) => {
-        if (!cancelled) {
-          if (data.error) {
-            setError(data.error);
-          } else {
-            setMatches(data.matches || []);
-          }
-        }
-      })
-      .catch((err) => {
-        if (!cancelled && err.name !== "AbortError") setError(String(err));
-      })
-      .finally(() => {
-        if (!cancelled) setLoading(false);
-      });
+    loadMatches(controller.signal)
+      .catch((err) => { if (!cancelled && err.name !== "AbortError") setError(String(err)); })
+      .finally(() => { if (!cancelled) setLoading(false); });
     return () => { cancelled = true; controller.abort(); };
   }, []);
+
+  const handleScan = async () => {
+    setScanning(true);
+    setScanResult(null);
+    try {
+      const res = await fetch("/api/weapons?refresh=true&step=0");
+      const data = await res.json();
+      const processed = data.matchesProcessed || 0;
+      setScanResult(processed > 0 ? `Found ${processed} new matches` : "No new matches found");
+      await loadMatches();
+    } catch (err) {
+      setScanResult(`Error: ${err}`);
+    } finally {
+      setScanning(false);
+    }
+  };
 
   if (loading) {
     return (
@@ -115,9 +117,23 @@ export function MatchHistory() {
 
   return (
     <div className="space-y-3">
-      <p className="text-xs text-zinc-500">
-        Showing {matches.length} recent matches (last 14 days)
-      </p>
+      <div className="flex items-center justify-between flex-wrap gap-2">
+        <p className="text-xs text-zinc-500">
+          Showing {matches.length} recent matches (last 14 days)
+        </p>
+        <div className="flex items-center gap-2">
+          {scanResult && (
+            <span className="text-xs text-zinc-400">{scanResult}</span>
+          )}
+          <button
+            onClick={handleScan}
+            disabled={scanning}
+            className="px-3 py-1 text-xs rounded bg-zinc-700 hover:bg-zinc-600 text-zinc-200 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+          >
+            {scanning ? "Scanning..." : "Scan New Matches"}
+          </button>
+        </div>
+      </div>
       {matches.map((match) => (
         <div
           key={match.id}
