@@ -128,6 +128,11 @@ export function MatchHistory() {
               <span className="text-sm font-bold text-white">
                 {mapLabel(match.mapName)}
               </span>
+              {match.trackedParticipants.length > 0 && (
+                <span className="text-sm font-bold" style={{ color: placeColor(match.trackedParticipants[0].winPlace) }}>
+                  #{match.trackedParticipants[0].winPlace}
+                </span>
+              )}
               <span className="text-xs text-zinc-500">
                 {match.gameMode}
               </span>
@@ -146,7 +151,6 @@ export function MatchHistory() {
               <thead>
                 <tr className="text-zinc-500 border-b border-zinc-700">
                   <th className="text-left py-1 pr-3 font-medium">Player</th>
-                  <th className="text-center py-1 px-2 font-medium">Place</th>
                   <th className="text-center py-1 px-2 font-medium">Kills</th>
                   <th className="text-center py-1 px-2 font-medium">Damage</th>
                   <th className="text-center py-1 px-2 font-medium">Assists</th>
@@ -175,14 +179,6 @@ export function MatchHistory() {
                           }}
                         >
                           {p.name}
-                        </td>
-                        <td className="text-center py-1.5 px-2">
-                          <span
-                            className="font-bold"
-                            style={{ color: placeColor(p.winPlace) }}
-                          >
-                            #{p.winPlace}
-                          </span>
                         </td>
                         <td className="text-center py-1.5 px-2 text-white font-medium">
                           {p.kills}
