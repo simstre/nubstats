@@ -207,7 +207,7 @@ export function WeaponStats() {
                 <th className="text-center py-2.5 px-2 font-medium cursor-pointer hover:text-zinc-200" onClick={() => handleSort("avgKillDist")}>Avg Dist{sortIndicator("avgKillDist")}</th>
                 <th className="text-center py-2.5 px-2 font-medium cursor-pointer hover:text-zinc-200" onClick={() => handleSort("longest_kill_distance")}>Max Dist{sortIndicator("longest_kill_distance")}</th>
                 <th className="text-center py-2.5 px-2 font-medium cursor-pointer hover:text-zinc-200" onClick={() => handleSort("matches_used")}>Games{sortIndicator("matches_used")}</th>
-                <th className="text-left py-2.5 px-2 font-medium w-32"></th>
+                <th className="text-left py-2.5 px-2 font-medium w-32 cursor-pointer hover:text-zinc-200" onClick={() => handleSort("damage")}>Rel. Dmg{sortIndicator("damage")}</th>
               </tr>
             </thead>
             <tbody>

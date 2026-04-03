@@ -1,5 +1,4 @@
 import { NextResponse } from "next/server";
-import { waitUntil } from "@vercel/functions";
 
 export const maxDuration = 60;
 
@@ -13,30 +12,30 @@ function getBaseUrl() {
   return "http://localhost:3007";
 }
 
-async function fireWithDelay(url: string, delayMs: number) {
-  await new Promise((r) => setTimeout(r, delayMs));
-  try {
-    await fetch(url);
-  } catch (err) {
-    console.error(`Failed to fire ${url}:`, err);
+function authHeaders(): HeadersInit {
+  if (process.env.CRON_SECRET) {
+    return { Authorization: `Bearer ${process.env.CRON_SECRET}` };
   }
+  return {};
 }
 
 export async function GET() {
   const base = getBaseUrl();
+  const headers = authHeaders();
 
-  // Fire all steps for fetch-stats and weapons with staggered delays
-  // fetch-stats: step 0 (immediate), step 1 (after 60s)
-  // weapons: step 0 (after 150s), step 1 (after 210s), step 2 (after 270s)
-  waitUntil(
-    Promise.all([
-      fetch(`${base}/api/cron/fetch-stats?step=0`).catch((e) => console.error("fetch-stats step 0:", e)),
-      fireWithDelay(`${base}/api/cron/fetch-stats?step=1`, 70000),
-      fireWithDelay(`${base}/api/weapons?refresh=true&step=0`, 150000),
-      fireWithDelay(`${base}/api/weapons?refresh=true&step=1`, 210000),
-      fireWithDelay(`${base}/api/weapons?refresh=true&step=2`, 270000),
-    ])
-  );
+  // Kick off fetch-stats step 0 — it chains to step 1 on its own.
+  // Each step is its own serverless invocation, so no timeout issue.
+  const statsRes = await fetch(`${base}/api/cron/fetch-stats?step=0`, { headers });
+  const statsOk = statsRes.ok;
 
-  return NextResponse.json({ success: true, message: "Daily cron dispatched" });
+  // Kick off weapons step 0 — it chains to steps 1, 2 on its own.
+  const weaponsRes = await fetch(`${base}/api/weapons?refresh=true&step=0`, { headers });
+  const weaponsOk = weaponsRes.ok;
+
+  return NextResponse.json({
+    success: statsOk && weaponsOk,
+    message: "Daily cron dispatched",
+    stats: { status: statsRes.status },
+    weapons: { status: weaponsRes.status },
+  });
 }

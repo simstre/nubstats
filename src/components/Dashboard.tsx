@@ -30,35 +30,54 @@ function seasonLabel(seasonId: string): string {
 export function Dashboard() {
   const [snapshots, setSnapshots] = useState<Snapshot[]>([]);
   const [seasons, setSeasons] = useState<string[]>([]);
-  const [selectedSeason, setSelectedSeason] = useState<string>("lifetime");
+  const [selectedSeason, setSelectedSeason] = useState<string>("");
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [gameMode] = useState<GameMode>("squad");
   const [selectedPlayer, setSelectedPlayer] = useState(TRACKED_PLAYERS[0]);
   const [tab, setTab] = useState<Tab>("leaderboard");
 
-  const loadStats = useCallback(async (season?: string) => {
+  const loadStats = useCallback(async (season: string) => {
     try {
-      const seasonParam = season || selectedSeason;
-      const url = seasonParam && seasonParam !== "lifetime"
-        ? `/api/stats?season=${seasonParam}`
+      const url = season && season !== "lifetime"
+        ? `/api/stats?season=${season}`
         : "/api/stats";
       const res = await fetch(url);
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       const data = await res.json();
+      const allSeasons: string[] = data.seasons || [];
       setSnapshots(data.snapshots || []);
-      setSeasons(data.seasons || []);
+      setSeasons(allSeasons);
       setError(null);
+
+      // On first load, default to the latest season
+      if (!season) {
+        const latest = allSeasons
+          .filter((s: string) => s !== "lifetime" && s.includes("pc-"))
+          .sort()
+          .pop();
+        if (latest) {
+          setSelectedSeason(latest);
+          // Re-fetch with the latest season
+          const seasonRes = await fetch(`/api/stats?season=${latest}`);
+          if (seasonRes.ok) {
+            const seasonData = await seasonRes.json();
+            setSnapshots(seasonData.snapshots || []);
+          }
+        } else {
+          setSelectedSeason("lifetime");
+        }
+      }
     } catch (err) {
       setError(String(err));
     } finally {
       setLoading(false);
     }
-  }, [selectedSeason]);
+  }, []);
 
   useEffect(() => {
-    loadStats();
-  }, [loadStats]);
+    loadStats(selectedSeason);
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   const handleSeasonChange = async (season: string) => {
     setSelectedSeason(season);

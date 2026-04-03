@@ -121,7 +121,11 @@ export async function GET(request: NextRequest) {
           ? `https://${process.env.VERCEL_URL}`
           : new URL(request.url).origin;
         const nextUrl = `${baseUrl}/api/weapons?reprocess=${reprocessPlayer}&step=${step + 1}`;
-        waitUntil(fetch(nextUrl).catch((err) => console.error("Chain failed:", err)));
+        const chainHeaders: HeadersInit = {};
+        if (process.env.CRON_SECRET) {
+          chainHeaders["Authorization"] = `Bearer ${process.env.CRON_SECRET}`;
+        }
+        waitUntil(fetch(nextUrl, { headers: chainHeaders }).catch((err) => console.error("Chain failed:", err)));
       }
 
       return NextResponse.json({ success: true, player: reprocessPlayer, step, matchesReprocessed: processed, totalMatches: matchIds.length });
@@ -353,7 +357,11 @@ export async function GET(request: NextRequest) {
           ? `https://${process.env.VERCEL_URL}`
           : new URL(request.url).origin;
         const nextUrl = `${baseUrl}/api/weapons?refresh=true&step=${step + 1}`;
-        waitUntil(fetch(nextUrl).catch((err) => console.error("Chain failed:", err)));
+        const chainHeaders: HeadersInit = {};
+        if (process.env.CRON_SECRET) {
+          chainHeaders["Authorization"] = `Bearer ${process.env.CRON_SECRET}`;
+        }
+        waitUntil(fetch(nextUrl, { headers: chainHeaders }).catch((err) => console.error("Chain failed:", err)));
       }
 
       return NextResponse.json({

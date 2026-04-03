@@ -92,7 +92,11 @@ export async function GET(request: NextRequest) {
         ? `https://${process.env.VERCEL_URL}`
         : new URL(request.url).origin;
       const nextUrl = `${baseUrl}/api/cron/fetch-stats?step=${step + 1}`;
-      waitUntil(fetch(nextUrl).catch((err) => console.error("Chain failed:", err)));
+      const headers: HeadersInit = {};
+      if (process.env.CRON_SECRET) {
+        headers["Authorization"] = `Bearer ${process.env.CRON_SECRET}`;
+      }
+      waitUntil(fetch(nextUrl, { headers }).catch((err) => console.error("Chain failed:", err)));
     }
 
     return NextResponse.json({ success: true, step, results });
