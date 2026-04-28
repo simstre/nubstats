@@ -172,9 +172,13 @@ export async function initWeaponTables() {
       hits INTEGER DEFAULT 0,
       knocks INTEGER DEFAULT 0,
       kills INTEGER DEFAULT 0,
+      created_at TIMESTAMP DEFAULT NOW(),
       UNIQUE(attacker_name, victim_name)
     )
   `);
+
+  // Migration: add created_at to existing tables.
+  await query(`ALTER TABLE friendly_fire ADD COLUMN IF NOT EXISTS created_at TIMESTAMP DEFAULT NOW()`);
 }
 
 export async function initMatchTable() {
@@ -349,6 +353,12 @@ export async function getAllFriendlyFire() {
     `SELECT * FROM friendly_fire ORDER BY damage DESC`
   );
   return result.rows;
+}
+
+export async function getFriendlyFireStartDate(): Promise<string | null> {
+  const result = await query(`SELECT MIN(created_at) AS earliest FROM friendly_fire`);
+  const row = result.rows[0];
+  return row?.earliest ? String(row.earliest) : null;
 }
 
 export async function clearPlayerFriendlyFire(playerName: string) {

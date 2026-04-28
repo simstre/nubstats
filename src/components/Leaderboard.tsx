@@ -14,6 +14,7 @@ interface LeaderboardProps {
   gameMode: GameMode;
   seasonTitle: string;
   ffByPlayer?: Record<string, PlayerFF>;
+  ffStartDate?: string | null;
 }
 
 type StatKey = keyof ComputedStats;
@@ -54,7 +55,7 @@ function getMedal(index: number) {
 
 type FFCardDef = { key: string; label: string; getValue: (name: string) => number; format: (v: number) => string };
 
-export function Leaderboard({ snapshots, gameMode, seasonTitle, ffByPlayer }: LeaderboardProps) {
+export function Leaderboard({ snapshots, gameMode, seasonTitle, ffByPlayer, ffStartDate }: LeaderboardProps) {
   const modeSnapshots = snapshots.filter((s) => s.game_mode === gameMode);
   if (modeSnapshots.length === 0) {
     return (
@@ -200,7 +201,12 @@ export function Leaderboard({ snapshots, gameMode, seasonTitle, ffByPlayer }: Le
 
       <div className="rounded-xl border border-red-500/20 bg-red-500/[0.03] p-4 mt-6">
         <h3 className="text-sm font-semibold text-red-400 uppercase tracking-wider mb-1">Friendly Fire</h3>
-        <p className="text-xs text-zinc-500 mb-3">All-time, from match telemetry. Not season-filtered.</p>
+        <p className="text-xs text-zinc-500 mb-3">
+          From match telemetry. Not season-filtered.
+          {ffStartDate && (
+            <> Tracked since <span className="text-zinc-300">{new Date(ffStartDate).toLocaleDateString()}</span>.</>
+          )}
+        </p>
         <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3">
           {renderFFCards(FF_STATS)}
         </div>

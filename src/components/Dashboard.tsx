@@ -88,6 +88,7 @@ export function Dashboard() {
   const [selectedPlayer, setSelectedPlayer] = useState(TRACKED_PLAYERS[0]);
   const [tab, setTab] = useState<Tab>("leaderboard");
   const [ffByPlayer, setFFByPlayer] = useState<Record<string, PlayerFF>>({});
+  const [ffStartDate, setFFStartDate] = useState<string | null>(null);
 
   const loadStats = useCallback(async (season: string) => {
     try {
@@ -139,6 +140,7 @@ export function Dashboard() {
         if (cancelled) return;
         if (!json.error) {
           setFFByPlayer(aggregateFF((json.friendlyFire as FFRow[]) || []));
+          setFFStartDate(json.ffStartDate || null);
         }
       })
       .catch(() => { /* ignore — FF panel just won't render data */ });
@@ -282,6 +284,7 @@ export function Dashboard() {
                 gameMode={gameMode}
                 seasonTitle={seasonLabel(selectedSeason)}
                 ffByPlayer={ffByPlayer}
+                ffStartDate={ffStartDate}
               />
             )}
             {tab === "players" && (

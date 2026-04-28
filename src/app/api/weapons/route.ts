@@ -17,6 +17,7 @@ import {
   getAllProcessedMatchIds,
   upsertFriendlyFire,
   getAllFriendlyFire,
+  getFriendlyFireStartDate,
   clearPlayerFriendlyFire,
 } from "@/lib/db";
 
@@ -445,13 +446,14 @@ export async function GET(request: NextRequest) {
     }
 
     // Just return stored data (no refresh)
-    const [allStats, allDeaths, allFF, dateRange] = await Promise.all([
-      getAllWeaponStats(), getAllDeathStats(), getAllFriendlyFire(), getProcessedMatchesDateRange(),
+    const [allStats, allDeaths, allFF, ffStartDate, dateRange] = await Promise.all([
+      getAllWeaponStats(), getAllDeathStats(), getAllFriendlyFire(), getFriendlyFireStartDate(), getProcessedMatchesDateRange(),
     ]);
     return NextResponse.json({
       weapons: groupByPlayer(allStats),
       deaths: groupByPlayer(allDeaths),
       friendlyFire: allFF,
+      ffStartDate,
       dateRange,
     });
   } catch (error) {
