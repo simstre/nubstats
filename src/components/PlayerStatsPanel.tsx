@@ -111,7 +111,6 @@ export function PlayerStatsPanel({
         <p className="text-xs text-zinc-500 mb-3">All-time, from match telemetry. Kills shown above as &ldquo;Team Kills&rdquo; (season-filtered).</p>
         <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
           <StatCard label="Damage Dealt" value={(ff?.dealt.damage ?? 0).toFixed(0)} />
-          <StatCard label="Hits Dealt" value={(ff?.dealt.hits ?? 0).toLocaleString()} />
           <StatCard label="Knocks Dealt" value={(ff?.dealt.knocks ?? 0).toLocaleString()} />
         </div>
       </div>
@@ -121,7 +120,6 @@ export function PlayerStatsPanel({
         <p className="text-xs text-zinc-500 mb-3">All-time, from match telemetry. Not season-filtered.</p>
         <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
           <StatCard label="Damage Taken" value={(ff?.taken.damage ?? 0).toFixed(0)} />
-          <StatCard label="Hits Taken" value={(ff?.taken.hits ?? 0).toLocaleString()} />
           <StatCard label="Knocked by Teammate" value={(ff?.taken.knocks ?? 0).toLocaleString()} />
           <StatCard label="Killed by Teammate" value={(ff?.taken.kills ?? 0).toLocaleString()} />
         </div>

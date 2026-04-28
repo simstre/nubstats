@@ -111,16 +111,16 @@ export function Leaderboard({ snapshots, gameMode, seasonTitle, ffByPlayer, ffSt
 
   const FF_STATS: FFCardDef[] = [
     {
-      key: "ffDamage",
+      key: "ffDamageDealt",
       label: "FF Damage Dealt",
       getValue: (name) => ffByPlayer?.[name]?.dealt.damage ?? 0,
       format: (v) => v.toFixed(0),
     },
     {
-      key: "ffHits",
-      label: "FF Hits Dealt",
-      getValue: (name) => ffByPlayer?.[name]?.dealt.hits ?? 0,
-      format: (v) => v.toLocaleString(),
+      key: "ffDamageTaken",
+      label: "FF Damage Taken",
+      getValue: (name) => ffByPlayer?.[name]?.taken.damage ?? 0,
+      format: (v) => v.toFixed(0),
     },
   ];
 
