@@ -19,6 +19,7 @@ import {
   getAllFriendlyFire,
   getFriendlyFireStartDate,
   clearPlayerFriendlyFire,
+  clearPlayerWeaponsAndDeaths,
 } from "@/lib/db";
 
 export const dynamic = "force-dynamic";
@@ -66,19 +67,24 @@ export async function GET(request: NextRequest) {
   try {
     await initWeaponTables();
 
-    // FF backfill for a specific player. Friendly-fire-only — does NOT touch
-    // weapon_stats or death_stats (those are owned by the main daily-cron path).
+    // FF backfill for a specific player. Friendly-fire-only by default.
+    // Pass `restore=1` to ALSO rebuild weapon_stats and death_stats for this
+    // player from any matches whose telemetry is still in PUBG's 14-day window.
+    // The restore mode is destructive on step 0 (clears the player's existing
+    // weapon_stats and death_stats) — only use it to recover from a known wipe.
     const reprocessPlayer = searchParams.get("reprocess");
     if (reprocessPlayer && TRACKED_PLAYERS.includes(reprocessPlayer)) {
       const step = parseInt(searchParams.get("step") || "0");
+      const restore = searchParams.get("restore") === "1";
       const matchIds = await getAllProcessedMatchIds();
       const batchSize = 5;
       const batch = matchIds.slice(step * batchSize, (step + 1) * batchSize);
 
-      // Idempotent: clear this player's FF rows on the first step so re-running
-      // the backfill produces the same totals instead of doubling.
       if (step === 0) {
         await clearPlayerFriendlyFire(reprocessPlayer);
+        if (restore) {
+          await clearPlayerWeaponsAndDeaths(reprocessPlayer);
+        }
       }
 
       let processed = 0;
@@ -106,34 +112,78 @@ export async function GET(request: NextRequest) {
             if (!ffPairs[a][v]) ffPairs[a][v] = { damage: 0, hits: 0, knocks: 0, kills: 0 };
           }
 
+          interface WepAccum { kills: number; knocks: number; damage: number; headshots: number; hits: number; totalKillDist: number; longestKillDist: number; }
+          const wepStats: Record<string, WepAccum> = {};
+          const deathCauses: Record<string, number> = {};
+          function ensureWep(w: string) {
+            if (!wepStats[w]) wepStats[w] = { kills: 0, knocks: 0, damage: 0, headshots: 0, hits: 0, totalKillDist: 0, longestKillDist: 0 };
+          }
+
           for (const e of events) {
-            if (e._T === "LogPlayerTakeDamage" && e.attacker && e.victim && isFriendlyFire(e.attacker, e.victim)) {
-              const aName: string = e.attacker.name;
-              const vName: string = e.victim.name;
-              if (aName === reprocessPlayer || vName === reprocessPlayer) {
-                ensureFFPair(aName, vName);
-                ffPairs[aName][vName].damage += e.damage || 0;
-                ffPairs[aName][vName].hits += 1;
+            if (e._T === "LogPlayerTakeDamage") {
+              if (restore && e.attacker?.name === reprocessPlayer && e.damageCauserName) {
+                const w = getWeaponName(e.damageCauserName);
+                ensureWep(w);
+                wepStats[w].damage += e.damage || 0;
+                wepStats[w].hits += 1;
+              }
+              if (e.attacker && e.victim && isFriendlyFire(e.attacker, e.victim)) {
+                const aName: string = e.attacker.name;
+                const vName: string = e.victim.name;
+                if (aName === reprocessPlayer || vName === reprocessPlayer) {
+                  ensureFFPair(aName, vName);
+                  ffPairs[aName][vName].damage += e.damage || 0;
+                  ffPairs[aName][vName].hits += 1;
+                }
               }
             }
-            if (e._T === "LogPlayerMakeGroggy" && e.attacker && e.victim && isFriendlyFire(e.attacker, e.victim)) {
-              const aName: string = e.attacker.name;
-              const vName: string = e.victim.name;
-              if (aName === reprocessPlayer || vName === reprocessPlayer) {
-                ensureFFPair(aName, vName);
-                ffPairs[aName][vName].knocks += 1;
+            if (e._T === "LogPlayerMakeGroggy") {
+              if (restore && e.attacker?.name === reprocessPlayer && e.damageCauserName) {
+                const w = getWeaponName(e.damageCauserName);
+                ensureWep(w);
+                wepStats[w].knocks += 1;
+              }
+              if (e.attacker && e.victim && isFriendlyFire(e.attacker, e.victim)) {
+                const aName: string = e.attacker.name;
+                const vName: string = e.victim.name;
+                if (aName === reprocessPlayer || vName === reprocessPlayer) {
+                  ensureFFPair(aName, vName);
+                  ffPairs[aName][vName].knocks += 1;
+                }
               }
             }
-            if (e._T === "LogPlayerKillV2" && e.killer && e.victim && isFriendlyFire(e.killer, e.victim)) {
-              const aName: string = e.killer.name;
-              const vName: string = e.victim.name;
-              if (aName === reprocessPlayer || vName === reprocessPlayer) {
-                ensureFFPair(aName, vName);
-                ffPairs[aName][vName].kills += 1;
+            if (e._T === "LogPlayerKillV2") {
+              if (restore && e.killer?.name === reprocessPlayer && e.killerDamageInfo) {
+                const w = getWeaponName(e.killerDamageInfo.damageCauserName);
+                ensureWep(w);
+                wepStats[w].kills += 1;
+                const dist = (e.killerDamageInfo.distance || 0) / 100;
+                wepStats[w].totalKillDist += dist;
+                if (dist > wepStats[w].longestKillDist) wepStats[w].longestKillDist = dist;
+              }
+              if (restore && e.victim?.name === reprocessPlayer && e.killerDamageInfo) {
+                const cause = getWeaponName(e.killerDamageInfo.damageCauserName);
+                deathCauses[cause] = (deathCauses[cause] || 0) + 1;
+              }
+              if (e.killer && e.victim && isFriendlyFire(e.killer, e.victim)) {
+                const aName: string = e.killer.name;
+                const vName: string = e.victim.name;
+                if (aName === reprocessPlayer || vName === reprocessPlayer) {
+                  ensureFFPair(aName, vName);
+                  ffPairs[aName][vName].kills += 1;
+                }
               }
             }
           }
 
+          if (restore) {
+            for (const [weapon, stats] of Object.entries(wepStats)) {
+              await upsertWeaponStat(reprocessPlayer, weapon, stats.kills, stats.knocks, stats.damage, stats.headshots, stats.hits, 1, stats.totalKillDist, stats.longestKillDist);
+            }
+            for (const [cause, count] of Object.entries(deathCauses)) {
+              await upsertDeathStat(reprocessPlayer, cause, count);
+            }
+          }
           for (const [attacker, victims] of Object.entries(ffPairs)) {
             for (const [victim, ff] of Object.entries(victims)) {
               await upsertFriendlyFire(attacker, victim, ff.damage, ff.hits, ff.knocks, ff.kills);
@@ -150,7 +200,8 @@ export async function GET(request: NextRequest) {
         const baseUrl = process.env.VERCEL_URL
           ? `https://${process.env.VERCEL_URL}`
           : new URL(request.url).origin;
-        const nextUrl = `${baseUrl}/api/weapons?reprocess=${reprocessPlayer}&step=${step + 1}`;
+        const restoreParam = restore ? "&restore=1" : "";
+        const nextUrl = `${baseUrl}/api/weapons?reprocess=${reprocessPlayer}&step=${step + 1}${restoreParam}`;
         const chainHeaders: HeadersInit = {};
         if (process.env.CRON_SECRET) {
           chainHeaders["Authorization"] = `Bearer ${process.env.CRON_SECRET}`;
@@ -158,7 +209,7 @@ export async function GET(request: NextRequest) {
         waitUntil(fetch(nextUrl, { headers: chainHeaders }).catch((err) => console.error("Chain failed:", err)));
       }
 
-      return NextResponse.json({ success: true, player: reprocessPlayer, step, matchesReprocessed: processed, totalMatches: matchIds.length });
+      return NextResponse.json({ success: true, player: reprocessPlayer, step, restore, matchesReprocessed: processed, totalMatches: matchIds.length });
     }
 
     if (refresh) {

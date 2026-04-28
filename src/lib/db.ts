@@ -368,6 +368,11 @@ export async function clearPlayerFriendlyFire(playerName: string) {
   );
 }
 
+export async function clearPlayerWeaponsAndDeaths(playerName: string) {
+  await query(`DELETE FROM weapon_stats WHERE player_name = $1`, [playerName]);
+  await query(`DELETE FROM death_stats WHERE player_name = $1`, [playerName]);
+}
+
 export async function getProcessedMatchesDateRange(): Promise<{ earliest: string | null; latest: string | null; count: number }> {
   const result = await query(
     `SELECT MIN(processed_at) as earliest, MAX(processed_at) as latest, COUNT(*)::int as count FROM processed_matches`
