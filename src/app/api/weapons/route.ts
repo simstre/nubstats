@@ -96,6 +96,8 @@ export async function GET(request: NextRequest) {
           );
           if (!matchRes.ok) continue;
           const matchData = await matchRes.json();
+          const matchCreatedAt: string = matchData.data?.attributes?.createdAt;
+          if (!matchCreatedAt) continue;
           let telemetryUrl = "";
           for (const inc of matchData.included || []) {
             if (inc.type === "asset") { telemetryUrl = inc.attributes.URL; break; }
@@ -186,7 +188,7 @@ export async function GET(request: NextRequest) {
           }
           for (const [attacker, victims] of Object.entries(ffPairs)) {
             for (const [victim, ff] of Object.entries(victims)) {
-              await upsertFriendlyFire(attacker, victim, ff.damage, ff.hits, ff.knocks, ff.kills);
+              await upsertFriendlyFire(attacker, victim, ff.damage, ff.hits, ff.knocks, ff.kills, matchCreatedAt);
             }
           }
           processed++;
@@ -421,7 +423,7 @@ export async function GET(request: NextRequest) {
           for (const [attacker, victims] of Object.entries(ffAccum)) {
             for (const [victim, ff] of Object.entries(victims)) {
               await upsertFriendlyFire(
-                attacker, victim, ff.damage, ff.hits, ff.knocks, ff.kills
+                attacker, victim, ff.damage, ff.hits, ff.knocks, ff.kills, matchAttrs.createdAt
               );
             }
           }

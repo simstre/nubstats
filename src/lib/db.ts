@@ -173,12 +173,27 @@ export async function initWeaponTables() {
       knocks INTEGER DEFAULT 0,
       kills INTEGER DEFAULT 0,
       created_at TIMESTAMP DEFAULT NOW(),
+      earliest_match_at TIMESTAMP,
       UNIQUE(attacker_name, victim_name)
     )
   `);
 
-  // Migration: add created_at to existing tables.
+  // Migrations.
   await query(`ALTER TABLE friendly_fire ADD COLUMN IF NOT EXISTS created_at TIMESTAMP DEFAULT NOW()`);
+  await query(`ALTER TABLE friendly_fire ADD COLUMN IF NOT EXISTS earliest_match_at TIMESTAMP`);
+
+  // One-time backfill of earliest_match_at for rows written before the column existed.
+  // The current state was produced by today's reprocess run, which only had access
+  // to matches whose telemetry was within PUBG's 14-day retention window — so the
+  // floor for those rows is the oldest match in match_details from the last ~15 days.
+  await query(`
+    UPDATE friendly_fire
+    SET earliest_match_at = (
+      SELECT MIN(created_at) FROM match_details
+      WHERE created_at >= NOW() - INTERVAL '15 days'
+    )
+    WHERE earliest_match_at IS NULL
+  `);
 }
 
 export async function initMatchTable() {
@@ -333,18 +348,20 @@ export async function upsertFriendlyFire(
   damage: number,
   hits: number,
   knocks: number,
-  kills: number
+  kills: number,
+  matchCreatedAt: string
 ) {
   await query(
-    `INSERT INTO friendly_fire (attacker_name, victim_name, damage, hits, knocks, kills)
-     VALUES ($1, $2, $3, $4, $5, $6)
+    `INSERT INTO friendly_fire (attacker_name, victim_name, damage, hits, knocks, kills, earliest_match_at)
+     VALUES ($1, $2, $3, $4, $5, $6, $7)
      ON CONFLICT (attacker_name, victim_name)
      DO UPDATE SET
        damage = friendly_fire.damage + $3,
        hits = friendly_fire.hits + $4,
        knocks = friendly_fire.knocks + $5,
-       kills = friendly_fire.kills + $6`,
-    [attackerName, victimName, damage, hits, knocks, kills]
+       kills = friendly_fire.kills + $6,
+       earliest_match_at = LEAST(friendly_fire.earliest_match_at, $7::timestamp)`,
+    [attackerName, victimName, damage, hits, knocks, kills, matchCreatedAt]
   );
 }
 
@@ -356,7 +373,7 @@ export async function getAllFriendlyFire() {
 }
 
 export async function getFriendlyFireStartDate(): Promise<string | null> {
-  const result = await query(`SELECT MIN(created_at) AS earliest FROM friendly_fire`);
+  const result = await query(`SELECT MIN(earliest_match_at) AS earliest FROM friendly_fire`);
   const row = result.rows[0];
   return row?.earliest ? String(row.earliest) : null;
 }
