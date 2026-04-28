@@ -2,6 +2,7 @@
 
 import { computeStats, GameMode, GAME_MODE_LABELS, PLAYER_COLORS, PubgPlayerStats } from "@/lib/types";
 import { StatCard } from "./StatCard";
+import type { PlayerFF } from "./Dashboard";
 
 interface Snapshot {
   player_name: string;
@@ -14,6 +15,7 @@ interface PlayerStatsPanelProps {
   snapshots: Snapshot[];
   gameMode: GameMode;
   seasonTitle: string;
+  ff?: PlayerFF;
 }
 
 export function PlayerStatsPanel({
@@ -21,6 +23,7 @@ export function PlayerStatsPanel({
   snapshots,
   gameMode,
   seasonTitle,
+  ff,
 }: PlayerStatsPanelProps) {
   const snap = snapshots.find(
     (s) => s.player_name === playerName && s.game_mode === gameMode
@@ -101,6 +104,27 @@ export function PlayerStatsPanel({
         <StatCard label="Team Kills" value={s.teamKills} />
         <StatCard label="Suicides" value={s.suicides} />
       </div>
+      </div>
+
+      <div className="rounded-xl border border-red-500/20 bg-red-500/[0.03] p-4">
+        <h4 className="text-sm font-semibold text-red-400 uppercase tracking-wider mb-1">Friendly Fire Dealt</h4>
+        <p className="text-xs text-zinc-500 mb-3">All-time, from match telemetry. Kills shown above as &ldquo;Team Kills&rdquo; (season-filtered).</p>
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
+          <StatCard label="Damage Dealt" value={(ff?.dealt.damage ?? 0).toFixed(0)} />
+          <StatCard label="Hits Dealt" value={(ff?.dealt.hits ?? 0).toLocaleString()} />
+          <StatCard label="Knocks Dealt" value={(ff?.dealt.knocks ?? 0).toLocaleString()} />
+        </div>
+      </div>
+
+      <div className="rounded-xl border border-red-500/20 bg-red-500/[0.03] p-4">
+        <h4 className="text-sm font-semibold text-red-400 uppercase tracking-wider mb-1">Friendly Fire Taken</h4>
+        <p className="text-xs text-zinc-500 mb-3">All-time, from match telemetry. Not season-filtered.</p>
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
+          <StatCard label="Damage Taken" value={(ff?.taken.damage ?? 0).toFixed(0)} />
+          <StatCard label="Hits Taken" value={(ff?.taken.hits ?? 0).toLocaleString()} />
+          <StatCard label="Knocked by Teammate" value={(ff?.taken.knocks ?? 0).toLocaleString()} />
+          <StatCard label="Killed by Teammate" value={(ff?.taken.kills ?? 0).toLocaleString()} />
+        </div>
       </div>
     </div>
   );

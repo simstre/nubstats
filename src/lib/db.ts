@@ -162,6 +162,19 @@ export async function initWeaponTables() {
       UNIQUE(player_name, cause)
     )
   `);
+
+  await query(`
+    CREATE TABLE IF NOT EXISTS friendly_fire (
+      id SERIAL PRIMARY KEY,
+      attacker_name VARCHAR(255) NOT NULL,
+      victim_name VARCHAR(255) NOT NULL,
+      damage REAL DEFAULT 0,
+      hits INTEGER DEFAULT 0,
+      knocks INTEGER DEFAULT 0,
+      kills INTEGER DEFAULT 0,
+      UNIQUE(attacker_name, victim_name)
+    )
+  `);
 }
 
 export async function initMatchTable() {
@@ -308,6 +321,43 @@ export async function getAllDeathStats() {
     `SELECT * FROM death_stats ORDER BY player_name, deaths DESC`
   );
   return result.rows;
+}
+
+export async function upsertFriendlyFire(
+  attackerName: string,
+  victimName: string,
+  damage: number,
+  hits: number,
+  knocks: number,
+  kills: number
+) {
+  await query(
+    `INSERT INTO friendly_fire (attacker_name, victim_name, damage, hits, knocks, kills)
+     VALUES ($1, $2, $3, $4, $5, $6)
+     ON CONFLICT (attacker_name, victim_name)
+     DO UPDATE SET
+       damage = friendly_fire.damage + $3,
+       hits = friendly_fire.hits + $4,
+       knocks = friendly_fire.knocks + $5,
+       kills = friendly_fire.kills + $6`,
+    [attackerName, victimName, damage, hits, knocks, kills]
+  );
+}
+
+export async function getAllFriendlyFire() {
+  const result = await query(
+    `SELECT * FROM friendly_fire ORDER BY damage DESC`
+  );
+  return result.rows;
+}
+
+export async function clearPlayerDerivedStats(playerName: string) {
+  await query(`DELETE FROM weapon_stats WHERE player_name = $1`, [playerName]);
+  await query(`DELETE FROM death_stats WHERE player_name = $1`, [playerName]);
+  await query(
+    `DELETE FROM friendly_fire WHERE attacker_name = $1 OR victim_name = $1`,
+    [playerName]
+  );
 }
 
 export async function getProcessedMatchesDateRange(): Promise<{ earliest: string | null; latest: string | null; count: number }> {

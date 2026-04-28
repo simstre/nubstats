@@ -18,6 +18,27 @@ interface Snapshot {
 
 type Tab = "leaderboard" | "players" | "matches" | "weapons" | "deaths" | "history";
 
+export interface FFTotals {
+  damage: number;
+  hits: number;
+  knocks: number;
+  kills: number;
+}
+
+export interface PlayerFF {
+  dealt: FFTotals;
+  taken: FFTotals;
+}
+
+interface FFRow {
+  attacker_name: string;
+  victim_name: string;
+  damage: number;
+  hits: number;
+  knocks: number;
+  kills: number;
+}
+
 function seasonLabel(seasonId: string): string {
   if (seasonId === "lifetime") return "Lifetime";
   const match = seasonId.match(/pc-2018-(\d+)$/);
@@ -25,6 +46,36 @@ function seasonLabel(seasonId: string): string {
   const match2 = seasonId.match(/(\d{4})-(\d+)$/);
   if (match2) return `Season ${parseInt(match2[2])}`;
   return seasonId;
+}
+
+function emptyFF(): FFTotals {
+  return { damage: 0, hits: 0, knocks: 0, kills: 0 };
+}
+
+function aggregateFF(rows: FFRow[]): Record<string, PlayerFF> {
+  const out: Record<string, PlayerFF> = {};
+  for (const name of TRACKED_PLAYERS) {
+    out[name] = { dealt: emptyFF(), taken: emptyFF() };
+  }
+  for (const r of rows) {
+    const damage = Number(r.damage) || 0;
+    const hits = Number(r.hits) || 0;
+    const knocks = Number(r.knocks) || 0;
+    const kills = Number(r.kills) || 0;
+    if (out[r.attacker_name]) {
+      out[r.attacker_name].dealt.damage += damage;
+      out[r.attacker_name].dealt.hits += hits;
+      out[r.attacker_name].dealt.knocks += knocks;
+      out[r.attacker_name].dealt.kills += kills;
+    }
+    if (out[r.victim_name]) {
+      out[r.victim_name].taken.damage += damage;
+      out[r.victim_name].taken.hits += hits;
+      out[r.victim_name].taken.knocks += knocks;
+      out[r.victim_name].taken.kills += kills;
+    }
+  }
+  return out;
 }
 
 export function Dashboard() {
@@ -36,6 +87,7 @@ export function Dashboard() {
   const [gameMode] = useState<GameMode>("squad");
   const [selectedPlayer, setSelectedPlayer] = useState(TRACKED_PLAYERS[0]);
   const [tab, setTab] = useState<Tab>("leaderboard");
+  const [ffByPlayer, setFFByPlayer] = useState<Record<string, PlayerFF>>({});
 
   const loadStats = useCallback(async (season: string) => {
     try {
@@ -78,6 +130,20 @@ export function Dashboard() {
   useEffect(() => {
     loadStats(selectedSeason);
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  useEffect(() => {
+    let cancelled = false;
+    fetch("/api/weapons")
+      .then((r) => r.json())
+      .then((json) => {
+        if (cancelled) return;
+        if (!json.error) {
+          setFFByPlayer(aggregateFF((json.friendlyFire as FFRow[]) || []));
+        }
+      })
+      .catch(() => { /* ignore — FF panel just won't render data */ });
+    return () => { cancelled = true; };
+  }, []);
 
   const handleSeasonChange = async (season: string) => {
     setSelectedSeason(season);
@@ -211,7 +277,12 @@ export function Dashboard() {
         ) : (
           <>
             {tab === "leaderboard" && (
-              <Leaderboard snapshots={snapshots} gameMode={gameMode} seasonTitle={seasonLabel(selectedSeason)} />
+              <Leaderboard
+                snapshots={snapshots}
+                gameMode={gameMode}
+                seasonTitle={seasonLabel(selectedSeason)}
+                ffByPlayer={ffByPlayer}
+              />
             )}
             {tab === "players" && (
               <PlayerStatsPanel
@@ -219,6 +290,7 @@ export function Dashboard() {
                 snapshots={snapshots}
                 gameMode={gameMode}
                 seasonTitle={seasonLabel(selectedSeason)}
+                ff={ffByPlayer[selectedPlayer]}
               />
             )}
             {tab === "matches" && <MatchHistory />}
