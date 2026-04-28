@@ -17,7 +17,7 @@ import {
   getAllProcessedMatchIds,
   upsertFriendlyFire,
   getAllFriendlyFire,
-  clearPlayerDerivedStats,
+  clearPlayerFriendlyFire,
 } from "@/lib/db";
 
 export const dynamic = "force-dynamic";
@@ -65,7 +65,8 @@ export async function GET(request: NextRequest) {
   try {
     await initWeaponTables();
 
-    // Reprocess existing matches for a specific player (one-time use)
+    // FF backfill for a specific player. Friendly-fire-only — does NOT touch
+    // weapon_stats or death_stats (those are owned by the main daily-cron path).
     const reprocessPlayer = searchParams.get("reprocess");
     if (reprocessPlayer && TRACKED_PLAYERS.includes(reprocessPlayer)) {
       const step = parseInt(searchParams.get("step") || "0");
@@ -73,10 +74,10 @@ export async function GET(request: NextRequest) {
       const batchSize = 5;
       const batch = matchIds.slice(step * batchSize, (step + 1) * batchSize);
 
-      // Idempotent reprocess: clear this player's derived stats on the first step,
-      // then rebuild as we walk all processed matches across chained batches.
+      // Idempotent: clear this player's FF rows on the first step so re-running
+      // the backfill produces the same totals instead of doubling.
       if (step === 0) {
-        await clearPlayerDerivedStats(reprocessPlayer);
+        await clearPlayerFriendlyFire(reprocessPlayer);
       }
 
       let processed = 0;
@@ -98,8 +99,6 @@ export async function GET(request: NextRequest) {
           if (!telRes.ok) continue;
           const events: TelemetryEvent[] = await telRes.json();
 
-          const wepStats: Record<string, { kills: number; knocks: number; damage: number; headshots: number; hits: number; totalKillDist: number; longestKillDist: number }> = {};
-          const deathCauses: Record<string, number> = {};
           const ffPairs: Record<string, Record<string, { damage: number; hits: number; knocks: number; kills: number }>> = {};
           function ensureFFPair(a: string, v: string) {
             if (!ffPairs[a]) ffPairs[a] = {};
@@ -107,33 +106,6 @@ export async function GET(request: NextRequest) {
           }
 
           for (const e of events) {
-            if (e._T === "LogPlayerTakeDamage" && e.attacker?.name === reprocessPlayer && e.damageCauserName) {
-              const w = getWeaponName(e.damageCauserName);
-              if (!wepStats[w]) wepStats[w] = { kills: 0, knocks: 0, damage: 0, headshots: 0, hits: 0, totalKillDist: 0, longestKillDist: 0 };
-              wepStats[w].damage += e.damage || 0;
-              wepStats[w].hits += 1;
-            }
-            if (e._T === "LogPlayerKillV2") {
-              if (e.killer?.name === reprocessPlayer && e.killerDamageInfo) {
-                const w = getWeaponName(e.killerDamageInfo.damageCauserName);
-                if (!wepStats[w]) wepStats[w] = { kills: 0, knocks: 0, damage: 0, headshots: 0, hits: 0, totalKillDist: 0, longestKillDist: 0 };
-                wepStats[w].kills += 1;
-                const dist = (e.killerDamageInfo.distance || 0) / 100;
-                wepStats[w].totalKillDist += dist;
-                if (dist > wepStats[w].longestKillDist) wepStats[w].longestKillDist = dist;
-              }
-              if (e.victim?.name === reprocessPlayer && e.killerDamageInfo) {
-                const cause = getWeaponName(e.killerDamageInfo.damageCauserName);
-                deathCauses[cause] = (deathCauses[cause] || 0) + 1;
-              }
-            }
-            if (e._T === "LogPlayerMakeGroggy" && e.attacker?.name === reprocessPlayer && e.damageCauserName) {
-              const w = getWeaponName(e.damageCauserName);
-              if (!wepStats[w]) wepStats[w] = { kills: 0, knocks: 0, damage: 0, headshots: 0, hits: 0, totalKillDist: 0, longestKillDist: 0 };
-              wepStats[w].knocks += 1;
-            }
-
-            // Friendly fire: only record when reprocessPlayer is involved (avoid double-counting across reprocess runs)
             if (e._T === "LogPlayerTakeDamage" && e.attacker && e.victim && isFriendlyFire(e.attacker, e.victim)) {
               const aName: string = e.attacker.name;
               const vName: string = e.victim.name;
@@ -161,12 +133,6 @@ export async function GET(request: NextRequest) {
             }
           }
 
-          for (const [weapon, stats] of Object.entries(wepStats)) {
-            await upsertWeaponStat(reprocessPlayer, weapon, stats.kills, stats.knocks, stats.damage, stats.headshots, stats.hits, 1, stats.totalKillDist, stats.longestKillDist);
-          }
-          for (const [cause, count] of Object.entries(deathCauses)) {
-            await upsertDeathStat(reprocessPlayer, cause, count);
-          }
           for (const [attacker, victims] of Object.entries(ffPairs)) {
             for (const [victim, ff] of Object.entries(victims)) {
               await upsertFriendlyFire(attacker, victim, ff.damage, ff.hits, ff.knocks, ff.kills);

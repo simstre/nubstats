@@ -351,9 +351,7 @@ export async function getAllFriendlyFire() {
   return result.rows;
 }
 
-export async function clearPlayerDerivedStats(playerName: string) {
-  await query(`DELETE FROM weapon_stats WHERE player_name = $1`, [playerName]);
-  await query(`DELETE FROM death_stats WHERE player_name = $1`, [playerName]);
+export async function clearPlayerFriendlyFire(playerName: string) {
   await query(
     `DELETE FROM friendly_fire WHERE attacker_name = $1 OR victim_name = $1`,
     [playerName]
