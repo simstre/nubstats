@@ -197,7 +197,9 @@ export async function GET(request: NextRequest) {
       // Chain next batch
       const nextStart = (step + 1) * batchSize;
       if (nextStart < matchIds.length) {
-        const baseUrl = process.env.VERCEL_URL
+        const baseUrl = process.env.VERCEL_PROJECT_PRODUCTION_URL
+          ? `https://${process.env.VERCEL_PROJECT_PRODUCTION_URL}`
+          : process.env.VERCEL_URL
           ? `https://${process.env.VERCEL_URL}`
           : new URL(request.url).origin;
         const restoreParam = restore ? "&restore=1" : "";
@@ -477,7 +479,9 @@ export async function GET(request: NextRequest) {
       // Chain next batch
       const nextStart = (step + 1) * BATCH_SIZE;
       if (nextStart < TRACKED_PLAYERS.length) {
-        const baseUrl = process.env.VERCEL_URL
+        const baseUrl = process.env.VERCEL_PROJECT_PRODUCTION_URL
+          ? `https://${process.env.VERCEL_PROJECT_PRODUCTION_URL}`
+          : process.env.VERCEL_URL
           ? `https://${process.env.VERCEL_URL}`
           : new URL(request.url).origin;
         const nextUrl = `${baseUrl}/api/weapons?refresh=true&step=${step + 1}`;
