@@ -76,6 +76,7 @@ export async function GET(request: NextRequest) {
     if (reprocessPlayer && TRACKED_PLAYERS.includes(reprocessPlayer)) {
       const step = parseInt(searchParams.get("step") || "0");
       const restore = searchParams.get("restore") === "1";
+      const chain = searchParams.get("chain") !== "0"; // default true; pass chain=0 when driving from client
       const matchIds = await getAllProcessedMatchIds();
       const batchSize = 5;
       const batch = matchIds.slice(step * batchSize, (step + 1) * batchSize);
@@ -198,7 +199,7 @@ export async function GET(request: NextRequest) {
 
       // Chain next batch
       const nextStart = (step + 1) * batchSize;
-      if (nextStart < matchIds.length) {
+      if (chain && nextStart < matchIds.length) {
         const baseUrl = process.env.VERCEL_PROJECT_PRODUCTION_URL
           ? `https://${process.env.VERCEL_PROJECT_PRODUCTION_URL}`
           : process.env.VERCEL_URL
@@ -213,7 +214,7 @@ export async function GET(request: NextRequest) {
         waitUntil(fetch(nextUrl, { headers: chainHeaders }).catch((err) => console.error("Chain failed:", err)));
       }
 
-      return NextResponse.json({ success: true, player: reprocessPlayer, step, restore, matchesReprocessed: processed, totalMatches: matchIds.length });
+      return NextResponse.json({ success: true, player: reprocessPlayer, step, restore, chain, matchesReprocessed: processed, totalMatches: matchIds.length });
     }
 
     if (refresh) {
