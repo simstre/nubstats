@@ -123,6 +123,12 @@ export function Leaderboard({ snapshots, gameMode, seasonTitle, ffByPlayer, ffSt
       format: (v) => v.toFixed(0),
     },
     {
+      key: "ffKnockedTeammates",
+      label: "Knocked Teammates",
+      getValue: (name) => ffByPlayer?.[name]?.dealt.knocks ?? 0,
+      format: (v) => v.toLocaleString(),
+    },
+    {
       key: "ffKnockedByTeammates",
       label: "Knocked by Teammates",
       getValue: (name) => ffByPlayer?.[name]?.taken.knocks ?? 0,
