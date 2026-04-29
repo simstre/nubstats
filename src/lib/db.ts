@@ -225,6 +225,29 @@ export async function upsertMatch(
   );
 }
 
+export async function getMapStatsByPlayer(playerName: string) {
+  const result = await query(
+    `SELECT
+       map_name,
+       COUNT(*)::int AS games,
+       SUM((p->>'kills')::int)::int AS total_kills,
+       AVG((p->>'kills')::float)::float AS avg_kills,
+       SUM((p->>'damageDealt')::float)::float AS total_damage,
+       AVG((p->>'damageDealt')::float)::float AS avg_damage,
+       SUM(CASE WHEN (p->>'winPlace')::int = 1 THEN 1 ELSE 0 END)::int AS wins,
+       MAX((p->>'kills')::int)::int AS best_kills,
+       MAX((p->>'damageDealt')::float)::float AS best_damage,
+       MIN((p->>'winPlace')::int)::int AS best_place
+     FROM match_details,
+     LATERAL jsonb_array_elements(participants) AS p
+     WHERE p->>'name' = $1
+     GROUP BY map_name
+     ORDER BY games DESC`,
+    [playerName]
+  );
+  return result.rows;
+}
+
 export async function getRecentMatches(limit = 20) {
   const result = await query(
     `SELECT * FROM match_details ORDER BY created_at DESC LIMIT $1`,
