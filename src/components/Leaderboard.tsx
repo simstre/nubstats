@@ -122,6 +122,12 @@ export function Leaderboard({ snapshots, gameMode, seasonTitle, ffByPlayer, ffSt
       getValue: (name) => ffByPlayer?.[name]?.taken.damage ?? 0,
       format: (v) => v.toFixed(0),
     },
+    {
+      key: "ffKnockedByTeammates",
+      label: "Knocked by Teammates",
+      getValue: (name) => ffByPlayer?.[name]?.taken.knocks ?? 0,
+      format: (v) => v.toLocaleString(),
+    },
   ];
 
   function renderStatCards(stats: StatDef[]) {
