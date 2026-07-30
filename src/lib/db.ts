@@ -1,5 +1,5 @@
 import { Pool, QueryResultRow } from "pg";
-import { GameMode, PubgPlayerStats } from "./types";
+import { GameMode, PubgPlayerStats, TRACKED_PLAYERS } from "./types";
 
 const pool = new Pool({
   connectionString: process.env.POSTGRES_URL,
@@ -7,7 +7,7 @@ const pool = new Pool({
 
 async function query<T extends QueryResultRow = QueryResultRow>(
   text: string,
-  params?: (string | number)[]
+  params?: (string | number | string[])[]
 ) {
   const result = await pool.query<T>(text, params);
   return result;
@@ -444,5 +444,23 @@ export async function getSnapshotsBySeason(seasonId: string) {
      ORDER BY player_name, game_mode, fetched_at DESC`,
     [seasonId]
   );
-  return result.rows;
+  const rows = result.rows;
+
+  // Tracked players with no snapshot for this season yet (e.g. the season just
+  // started, or their last fetch failed) would otherwise disappear from the
+  // dashboard entirely instead of falling back to their lifetime stats.
+  const covered = new Set(rows.map((r) => r.player_name as string));
+  const missing = TRACKED_PLAYERS.filter((p) => !covered.has(p));
+  if (missing.length > 0) {
+    const fallback = await query(
+      `SELECT DISTINCT ON (player_name, game_mode) *
+       FROM stat_snapshots
+       WHERE season_id = 'lifetime' AND player_name = ANY($1)
+       ORDER BY player_name, game_mode, fetched_at DESC`,
+      [missing]
+    );
+    rows.push(...fallback.rows);
+  }
+
+  return rows;
 }

@@ -12,7 +12,11 @@ import { TRACKED_PLAYERS } from "@/lib/types";
 export const maxDuration = 60;
 
 const RATE_LIMIT_MS = 6000;
-const BATCH_SIZE = 3;
+// Each player needs up to 3 rate-limited API calls (~6s apart), so BATCH_SIZE=3
+// left too little margin under maxDuration=60 — a slow batch could be killed
+// mid-request, before it ever reached the code that chains the next batch,
+// silently dropping every remaining player for the day.
+const BATCH_SIZE = 2;
 
 export async function GET(request: NextRequest) {
   const authHeader = request.headers.get("authorization");
@@ -81,6 +85,7 @@ export async function GET(request: NextRequest) {
 
         results[playerName] = "OK";
       } catch (err) {
+        console.error(`fetch-stats failed for ${playerName}:`, err);
         results[playerName] = String(err);
       }
     }
