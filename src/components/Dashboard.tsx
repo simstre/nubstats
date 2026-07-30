@@ -12,6 +12,7 @@ import { DeathStats } from "./DeathStats";
 interface Snapshot {
   player_name: string;
   game_mode: string;
+  season_id: string;
   stats: PubgPlayerStats;
   fetched_at: string;
 }
@@ -283,6 +284,7 @@ export function Dashboard() {
                 snapshots={snapshots}
                 gameMode={gameMode}
                 seasonTitle={seasonLabel(selectedSeason)}
+                selectedSeason={selectedSeason}
                 ffByPlayer={ffByPlayer}
                 ffStartDate={ffStartDate}
               />
@@ -293,6 +295,7 @@ export function Dashboard() {
                 snapshots={snapshots}
                 gameMode={gameMode}
                 seasonTitle={seasonLabel(selectedSeason)}
+                selectedSeason={selectedSeason}
                 ff={ffByPlayer[selectedPlayer]}
               />
             )}

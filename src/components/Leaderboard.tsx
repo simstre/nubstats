@@ -6,6 +6,7 @@ import type { PlayerFF } from "./Dashboard";
 interface Snapshot {
   player_name: string;
   game_mode: string;
+  season_id: string;
   stats: PubgPlayerStats;
 }
 
@@ -13,6 +14,7 @@ interface LeaderboardProps {
   snapshots: Snapshot[];
   gameMode: GameMode;
   seasonTitle: string;
+  selectedSeason: string;
   ffByPlayer?: Record<string, PlayerFF>;
   ffStartDate?: string | null;
 }
@@ -55,7 +57,7 @@ function getMedal(index: number) {
 
 type FFCardDef = { key: string; label: string; getValue: (name: string) => number; format: (v: number) => string };
 
-export function Leaderboard({ snapshots, gameMode, seasonTitle, ffByPlayer, ffStartDate }: LeaderboardProps) {
+export function Leaderboard({ snapshots, gameMode, seasonTitle, selectedSeason, ffByPlayer, ffStartDate }: LeaderboardProps) {
   const modeSnapshots = snapshots.filter((s) => s.game_mode === gameMode);
   if (modeSnapshots.length === 0) {
     return (
@@ -65,7 +67,19 @@ export function Leaderboard({ snapshots, gameMode, seasonTitle, ffByPlayer, ffSt
     );
   }
 
-  const playerStats = modeSnapshots.map((s) => ({
+  // getSnapshotsBySeason() falls back to a player's lifetime snapshot when
+  // they have no row for the requested season yet, so it can still tag them
+  // in the roster. That lifetime data would dwarf real season totals if
+  // blended into the rankings, so exclude it here instead.
+  const isRealSeason = selectedSeason !== "" && selectedSeason !== "lifetime";
+  const seasonMatched = isRealSeason
+    ? modeSnapshots.filter((s) => s.season_id === selectedSeason)
+    : modeSnapshots;
+  const missingSeasonPlayers = isRealSeason
+    ? modeSnapshots.filter((s) => s.season_id !== selectedSeason).map((s) => s.player_name)
+    : [];
+
+  const playerStats = seasonMatched.map((s) => ({
     name: s.player_name,
     computed: computeStats(s.stats),
   }));
@@ -196,6 +210,11 @@ export function Leaderboard({ snapshots, gameMode, seasonTitle, ffByPlayer, ffSt
   return (
     <div>
       <p className="text-xs text-zinc-500 mb-3">Showing: {seasonTitle}</p>
+      {missingSeasonPlayers.length > 0 && (
+        <p className="text-xs text-zinc-500 mb-3">
+          No {seasonTitle} data yet for {missingSeasonPlayers.join(", ")} &mdash; excluded until their next stat fetch.
+        </p>
+      )}
 
       <div className="rounded-xl border border-yellow-500/20 bg-yellow-500/[0.03] p-4">
         <h3 className="text-sm font-semibold text-yellow-400 uppercase tracking-wider mb-3">Performance</h3>

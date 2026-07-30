@@ -36,6 +36,7 @@ interface MapStatsRow {
 interface Snapshot {
   player_name: string;
   game_mode: string;
+  season_id: string;
   stats: PubgPlayerStats;
 }
 
@@ -44,6 +45,7 @@ interface PlayerStatsPanelProps {
   snapshots: Snapshot[];
   gameMode: GameMode;
   seasonTitle: string;
+  selectedSeason: string;
   ff?: PlayerFF;
 }
 
@@ -52,6 +54,7 @@ export function PlayerStatsPanel({
   snapshots,
   gameMode,
   seasonTitle,
+  selectedSeason,
   ff,
 }: PlayerStatsPanelProps) {
   const [mapStats, setMapStats] = useState<MapStatsRow[] | null>(null);
@@ -73,10 +76,19 @@ export function PlayerStatsPanel({
     (s) => s.player_name === playerName && s.game_mode === gameMode
   );
 
-  if (!snap || snap.stats.roundsPlayed === 0) {
+  // getSnapshotsBySeason() falls back to the player's lifetime snapshot when
+  // they have no row for the requested season yet. Showing lifetime totals
+  // under a season heading would be misleading, so treat that case as "no
+  // data yet" instead of displaying it.
+  const isRealSeason = selectedSeason !== "" && selectedSeason !== "lifetime";
+  const noSeasonDataYet = isRealSeason && !!snap && snap.season_id !== selectedSeason;
+
+  if (!snap || snap.stats.roundsPlayed === 0 || noSeasonDataYet) {
     return (
       <div className="text-center text-zinc-500 py-8">
-        No {GAME_MODE_LABELS[gameMode]} data for {playerName}
+        {noSeasonDataYet
+          ? `No ${seasonTitle} data yet for ${playerName} — check back after their next stat fetch.`
+          : `No ${GAME_MODE_LABELS[gameMode]} data for ${playerName}`}
       </div>
     );
   }
